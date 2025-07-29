@@ -13,9 +13,9 @@
   --font-weight-semibold: 600;
 }
 
+/* Only keep box-sizing - let Tailwind handle spacing */
 * {
   box-sizing: border-box;
-  margin: 0;
 }
 
 html,

@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { AudioLines } from "lucide-react";
 
 export default function Home() {
   return (
@@ -30,9 +31,38 @@ export default function Home() {
         </div>
       </header>
       
-      {/* Main content area */}
-      <div className="p-8">
-        {/* Your homepage content will go here */}
+      {/* Main content area - centered */}
+      <div className="flex items-center justify-center min-h-screen">
+        {/* Centered content div */}
+        <div className="flex flex-col items-center text-center">
+          {/* Central circular logo */}
+          <div className="mb-8">
+            <Image
+              src="/logo.gif"
+              alt="Diora Central Logo"
+              width={200}
+              height={200}
+              className="w-48 h-48"
+              priority
+            />
+          </div>
+          
+          {/* Main heading */}
+          <h1 className="font-primary font-semibold text-4xl mb-4 text-black">
+            The AI-Powered Expert Network
+          </h1>
+          
+          {/* Tagline */}
+          <p className="font-primary font-light text-xl mb-8 text-black">
+            Insights delivered at the speed of thought.
+          </p>
+          
+          {/* Call to action button */}
+          <button className="w-[160px] h-[40px] bg-[rgb(75,46,182)] text-white rounded-xl font-primary font-light text-[18px] flex items-center justify-center gap-[6px] hover:bg-[rgb(65,36,172)] transition-colors">
+            <AudioLines className="w-3.5 h-3.5" />
+            Start now
+          </button>
+        </div>
       </div>
     </div>
   );
