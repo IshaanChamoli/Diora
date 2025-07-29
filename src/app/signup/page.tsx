@@ -45,7 +45,12 @@ export default function SignUp() {
       const result = await signUpUser(formData);
 
       if (!result.success) {
-        setError(result.error || 'An unknown error occurred');
+        // Check if it's an account already exists error
+        if (result.error?.includes('already registered') || result.error?.includes('already exists') || result.error?.includes('user with this email')) {
+          setError('Account already exists. Please log in instead.');
+        } else {
+          setError(result.error || 'An unknown error occurred');
+        }
         return;
       }
 
@@ -79,24 +84,26 @@ export default function SignUp() {
         <div className="flex justify-between items-center">
           {/* Logo on the left */}
           <div>
-            <Image
-              src="/logo-with-text.png"
-              alt="Diora Logo"
-              width={120}
-              height={32}
-              className="h-8 w-auto"
-              priority
-            />
+            <a href="/">
+              <Image
+                src="/logo-with-text.png"
+                alt="Diora Logo"
+                width={120}
+                height={32}
+                className="h-8 w-auto"
+                priority
+              />
+            </a>
           </div>
           
           {/* Buttons on the right */}
           <div className="flex gap-3">
-            <button className="px-5 py-2 bg-[rgb(75,46,182)] text-white rounded-2xl font-medium hover:bg-[rgb(65,36,172)] transition-colors">
+            <a href="/login" className="px-5 py-2 bg-[rgb(75,46,182)] text-white rounded-2xl font-medium hover:bg-[rgb(65,36,172)] transition-colors">
               Log in
-            </button>
-            <button className="px-5 py-2 bg-[rgb(230,223,253)] text-[rgb(75,46,182)] border border-[rgb(75,46,182)] rounded-2xl font-medium hover:bg-[rgb(245,243,255)] transition-colors">
+            </a>
+            <a href="/signup" className="px-5 py-2 bg-[rgb(230,223,253)] text-[rgb(75,46,182)] border border-[rgb(75,46,182)] rounded-2xl font-medium hover:bg-[rgb(245,243,255)] transition-colors">
               Sign up for free
-            </button>
+            </a>
           </div>
         </div>
       </header>
@@ -124,7 +131,7 @@ export default function SignUp() {
             
             {/* Error message */}
             {error && (
-              <div className="w-4/5 mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <div className="w-full mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
                 <p className="text-red-600 text-sm font-secondary">{error}</p>
               </div>
             )}
@@ -139,6 +146,7 @@ export default function SignUp() {
                   value={formData.firstName}
                   onChange={(e) => handleInputChange('firstName', e.target.value)}
                   autoFocus
+                  autoComplete="off"
                   className="w-full px-4 py-3 border border-gray-600 rounded-xl font-secondary text-sm placeholder-gray-400 focus:outline-none focus:border-[rgb(75,46,182)] transition-colors"
                 />
               </div>
@@ -150,6 +158,7 @@ export default function SignUp() {
                   placeholder="Last name"
                   value={formData.lastName}
                   onChange={(e) => handleInputChange('lastName', e.target.value)}
+                  autoComplete="off"
                   className="w-full px-4 py-3 border border-gray-600 rounded-xl font-secondary text-sm placeholder-gray-400 focus:outline-none focus:border-[rgb(75,46,182)] transition-colors"
                 />
               </div>
@@ -162,6 +171,7 @@ export default function SignUp() {
                 placeholder="Email address"
                 value={formData.email}
                 onChange={(e) => handleInputChange('email', e.target.value)}
+                autoComplete="off"
                 className="w-full px-4 py-3 border border-gray-600 rounded-xl font-secondary text-sm placeholder-gray-400 focus:outline-none focus:border-[rgb(75,46,182)] transition-colors"
               />
             </div>
@@ -173,6 +183,7 @@ export default function SignUp() {
                 placeholder="Set password"
                 value={formData.password}
                 onChange={(e) => handleInputChange('password', e.target.value)}
+                autoComplete="off"
                 className="w-full px-4 py-3 pr-12 border border-gray-600 rounded-xl font-secondary text-sm placeholder-gray-400 focus:outline-none focus:border-[rgb(75,46,182)] transition-colors"
               />
               <button 
@@ -197,7 +208,7 @@ export default function SignUp() {
             <div className="space-y-4">
               <p className="font-secondary text-sm text-black">
                 Already have an account?{" "}
-                <a href="/log-in" className="text-[rgb(75,46,182)] hover:text-[rgb(65,36,172)] transition-colors">
+                <a href="/login" className="text-[rgb(75,46,182)] hover:text-[rgb(65,36,172)] transition-colors">
                   Log in
                 </a>
               </p>

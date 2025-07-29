@@ -17,7 +17,7 @@ export default function Dashboard() {
         
         if (authError || !user) {
           console.error('Auth error:', authError);
-          router.push('/sign-up');
+          router.push('/signup');
           return;
         }
 
@@ -30,14 +30,14 @@ export default function Dashboard() {
 
         if (investorError) {
           console.error('Error fetching investor data:', investorError);
-          router.push('/sign-up');
+          router.push('/signup');
           return;
         }
 
         setFirstName(investorData.first_name);
       } catch (error) {
         console.error('Dashboard error:', error);
-        router.push('/sign-up');
+        router.push('/signup');
       } finally {
         setLoading(false);
       }

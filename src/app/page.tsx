@@ -9,22 +9,24 @@ export default function Home() {
         <div className="flex justify-between items-center">
           {/* Logo on the left */}
           <div>
-            <Image
-              src="/logo-with-text.png"
-              alt="Diora Logo"
-              width={120}
-              height={32}
-              className="h-8 w-auto"
-              priority
-            />
+            <a href="/">
+              <Image
+                src="/logo-with-text.png"
+                alt="Diora Logo"
+                width={120}
+                height={32}
+                className="h-8 w-auto"
+                priority
+              />
+            </a>
           </div>
           
           {/* Buttons on the right */}
           <div className="flex gap-3">
-            <button className="px-5 py-2 bg-[rgb(75,46,182)] text-white rounded-2xl font-medium hover:bg-[rgb(65,36,172)] transition-colors">
+            <a href="/login" className="px-5 py-2 bg-[rgb(75,46,182)] text-white rounded-2xl font-medium hover:bg-[rgb(65,36,172)] transition-colors">
               Log in
-            </button>
-            <a href="/sign-up" className="px-5 py-2 bg-[rgb(230,223,253)] text-[rgb(75,46,182)] border border-[rgb(75,46,182)] rounded-2xl font-medium hover:bg-[rgb(245,243,255)] transition-colors">
+            </a>
+            <a href="/signup" className="px-5 py-2 bg-[rgb(230,223,253)] text-[rgb(75,46,182)] border border-[rgb(75,46,182)] rounded-2xl font-medium hover:bg-[rgb(245,243,255)] transition-colors">
               Sign up for free
             </a>
           </div>
