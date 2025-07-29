@@ -1,7 +1,12 @@
+"use client";
+
 import Image from "next/image";
-import { X } from "lucide-react";
+import { X, Eye, EyeOff } from "lucide-react";
+import { useState } from "react";
 
 export default function SignUp() {
+  const [showPassword, setShowPassword] = useState(false);
+
   return (
     <div className="relative min-h-screen">
       {/* Header with logo and buttons - using absolute positioning for perfect spacing */}
@@ -52,14 +57,51 @@ export default function SignUp() {
               Sign up using your work email
             </p>
             
+            {/* Name fields row */}
+            <div className="w-4/5 mb-6 flex gap-3">
+              {/* First name input field */}
+              <div className="flex-1">
+                <input
+                  type="text"
+                  placeholder="First name"
+                  autoFocus
+                  className="w-full px-4 py-3 border border-gray-600 rounded-xl font-secondary text-sm placeholder-gray-400 focus:outline-none focus:border-[rgb(75,46,182)] transition-colors"
+                />
+              </div>
+              
+              {/* Last name input field */}
+              <div className="flex-1">
+                <input
+                  type="text"
+                  placeholder="Last name"
+                  className="w-full px-4 py-3 border border-gray-600 rounded-xl font-secondary text-sm placeholder-gray-400 focus:outline-none focus:border-[rgb(75,46,182)] transition-colors"
+                />
+              </div>
+            </div>
+            
             {/* Email input field */}
             <div className="w-4/5 mb-6">
               <input
                 type="email"
                 placeholder="Email address"
-                autoFocus
                 className="w-full px-4 py-3 border border-gray-600 rounded-xl font-secondary text-sm placeholder-gray-400 focus:outline-none focus:border-[rgb(75,46,182)] transition-colors"
               />
+            </div>
+            
+            {/* Password input field */}
+            <div className="w-4/5 mb-6 relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                placeholder="Set password"
+                className="w-full px-4 py-3 pr-12 border border-gray-600 rounded-xl font-secondary text-sm placeholder-gray-400 focus:outline-none focus:border-[rgb(75,46,182)] transition-colors"
+              />
+              <button 
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 transition-colors"
+              >
+                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
             </div>
             
             {/* Continue button */}
