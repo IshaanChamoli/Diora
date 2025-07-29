@@ -3,9 +3,74 @@
 import Image from "next/image";
 import { X, Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
+import { signUpUser } from "@/app/actions/auth";
+import { supabase } from "@/lib/supabase";
 
 export default function SignUp() {
   const [showPassword, setShowPassword] = useState(false);
+  const [formData, setFormData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    password: ""
+  });
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    setError(""); // Clear error when user types
+  };
+
+  const validateForm = () => {
+    if (!formData.firstName.trim()) return "First name is required";
+    if (!formData.lastName.trim()) return "Last name is required";
+    if (!formData.email.trim()) return "Email is required";
+    if (!formData.password.trim()) return "Password is required";
+    if (formData.password.length < 6) return "Password must be at least 6 characters";
+    return null;
+  };
+
+  const handleSubmit = async () => {
+    const validationError = validateForm();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    setIsLoading(true);
+    setError("");
+
+    try {
+      const result = await signUpUser(formData);
+
+      if (!result.success) {
+        setError(result.error || 'An unknown error occurred');
+        return;
+      }
+
+      // Sign in the user on the client side to create a session
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: formData.email,
+        password: formData.password
+      });
+
+      if (signInError) {
+        setError('Account created but sign in failed. Please try logging in.');
+        return;
+      }
+
+      // Success!
+      alert('Account created successfully! Redirecting to dashboard...');
+      window.location.href = '/dashboard';
+      
+    } catch (err) {
+      setError('An unexpected error occurred. Please try again.');
+      console.error('Signup error:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="relative min-h-screen">
@@ -57,6 +122,13 @@ export default function SignUp() {
               Sign up using your work email
             </p>
             
+            {/* Error message */}
+            {error && (
+              <div className="w-4/5 mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-red-600 text-sm font-secondary">{error}</p>
+              </div>
+            )}
+            
             {/* Name fields row */}
             <div className="w-4/5 mb-6 flex gap-3">
               {/* First name input field */}
@@ -64,6 +136,8 @@ export default function SignUp() {
                 <input
                   type="text"
                   placeholder="First name"
+                  value={formData.firstName}
+                  onChange={(e) => handleInputChange('firstName', e.target.value)}
                   autoFocus
                   className="w-full px-4 py-3 border border-gray-600 rounded-xl font-secondary text-sm placeholder-gray-400 focus:outline-none focus:border-[rgb(75,46,182)] transition-colors"
                 />
@@ -74,6 +148,8 @@ export default function SignUp() {
                 <input
                   type="text"
                   placeholder="Last name"
+                  value={formData.lastName}
+                  onChange={(e) => handleInputChange('lastName', e.target.value)}
                   className="w-full px-4 py-3 border border-gray-600 rounded-xl font-secondary text-sm placeholder-gray-400 focus:outline-none focus:border-[rgb(75,46,182)] transition-colors"
                 />
               </div>
@@ -84,6 +160,8 @@ export default function SignUp() {
               <input
                 type="email"
                 placeholder="Email address"
+                value={formData.email}
+                onChange={(e) => handleInputChange('email', e.target.value)}
                 className="w-full px-4 py-3 border border-gray-600 rounded-xl font-secondary text-sm placeholder-gray-400 focus:outline-none focus:border-[rgb(75,46,182)] transition-colors"
               />
             </div>
@@ -93,6 +171,8 @@ export default function SignUp() {
               <input
                 type={showPassword ? "text" : "password"}
                 placeholder="Set password"
+                value={formData.password}
+                onChange={(e) => handleInputChange('password', e.target.value)}
                 className="w-full px-4 py-3 pr-12 border border-gray-600 rounded-xl font-secondary text-sm placeholder-gray-400 focus:outline-none focus:border-[rgb(75,46,182)] transition-colors"
               />
               <button 
@@ -105,8 +185,12 @@ export default function SignUp() {
             </div>
             
             {/* Continue button */}
-            <button className="px-8 py-3 bg-[rgb(75,46,182)] text-white rounded-xl font-secondary font-medium hover:bg-[rgb(65,36,172)] transition-colors mb-18">
-              Continue
+            <button 
+              onClick={handleSubmit}
+              disabled={isLoading}
+              className="px-8 py-3 bg-[rgb(75,46,182)] text-white rounded-xl font-secondary font-medium hover:bg-[rgb(65,36,172)] transition-colors mb-18 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isLoading ? "Creating account..." : "Continue"}
             </button>
             
             {/* Footer links */}
