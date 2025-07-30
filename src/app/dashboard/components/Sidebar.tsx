@@ -11,15 +11,29 @@ interface SidebarProps {
   currentProjectName?: string;
 }
 
+// Global state to cache sidebar data
+let sidebarDataCache: {
+  firstName: string;
+  lastName: string;
+  projects: Array<{ id: string; name: string; slug: string }>;
+  isLoaded: boolean;
+} = {
+  firstName: "",
+  lastName: "",
+  projects: [],
+  isLoaded: false
+};
+
 export default function Sidebar({ currentProjectSlug, currentProjectName }: SidebarProps) {
-  const [firstName, setFirstName] = useState<string>("");
-  const [lastName, setLastName] = useState<string>("");
-  const [loading, setLoading] = useState(true);
+  const [firstName, setFirstName] = useState<string>(sidebarDataCache.firstName);
+  const [lastName, setLastName] = useState<string>(sidebarDataCache.lastName);
+  const [loading, setLoading] = useState(!sidebarDataCache.isLoaded);
   const [showCreateInput, setShowCreateInput] = useState(false);
   const [projectName, setProjectName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-  const [projects, setProjects] = useState<Array<{ id: string; name: string; slug: string }>>([]);
+  const [projects, setProjects] = useState<Array<{ id: string; name: string; slug: string }>>(sidebarDataCache.projects);
+  const [showAllProjects, setShowAllProjects] = useState(false);
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -96,6 +110,17 @@ export default function Sidebar({ currentProjectSlug, currentProjectName }: Side
       setProjectName("");
       setShowCreateInput(false);
       setError("");
+      
+      // Update cache with new project
+      const newProject = {
+        id: project.id,
+        name: project.name,
+        slug: project.slug
+      };
+      
+      sidebarDataCache.projects = [newProject, ...sidebarDataCache.projects];
+      setProjects(sidebarDataCache.projects);
+      
       router.push(`/dashboard/projects/${project.slug}`);
       
     } catch (err) {
@@ -166,6 +191,15 @@ export default function Sidebar({ currentProjectSlug, currentProjectName }: Side
 
   useEffect(() => {
     async function fetchUserData() {
+      // If data is already cached, use it
+      if (sidebarDataCache.isLoaded) {
+        setFirstName(sidebarDataCache.firstName);
+        setLastName(sidebarDataCache.lastName);
+        setProjects(sidebarDataCache.projects);
+        setLoading(false);
+        return;
+      }
+
       try {
         // Get the current authenticated user
         const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -189,9 +223,6 @@ export default function Sidebar({ currentProjectSlug, currentProjectName }: Side
           return;
         }
 
-        setFirstName(investorData.first_name);
-        setLastName(investorData.last_name);
-
         // Fetch user's projects
         const { data: projectsData, error: projectsError } = await supabase
           .from('projects')
@@ -201,9 +232,23 @@ export default function Sidebar({ currentProjectSlug, currentProjectName }: Side
 
         if (projectsError) {
           console.error('Error fetching projects:', projectsError);
-        } else {
-          setProjects(projectsData || []);
         }
+
+        // Update cache and state
+        const fetchedFirstName = investorData.first_name;
+        const fetchedLastName = investorData.last_name;
+        const fetchedProjects = projectsData || [];
+
+        sidebarDataCache = {
+          firstName: fetchedFirstName,
+          lastName: fetchedLastName,
+          projects: fetchedProjects,
+          isLoaded: true
+        };
+
+        setFirstName(fetchedFirstName);
+        setLastName(fetchedLastName);
+        setProjects(fetchedProjects);
 
       } catch (error) {
         console.error('Sidebar error:', error);
@@ -215,6 +260,12 @@ export default function Sidebar({ currentProjectSlug, currentProjectName }: Side
 
     fetchUserData();
   }, [router]);
+
+  // Update current project highlighting without re-fetching data
+  useEffect(() => {
+    // This effect only handles UI updates for current project
+    // No data fetching needed since we have cached data
+  }, [currentProjectSlug, currentProjectName]);
 
   if (loading) {
     return (
@@ -233,7 +284,7 @@ export default function Sidebar({ currentProjectSlug, currentProjectName }: Side
   return (
     <div className="w-[18%] min-w-64 bg-white shadow-2xl h-screen flex flex-col">
       {/* Logo in top left corner */}
-      <div className="p-6 pb-4 mb-20">
+      <div className="p-6 pb-4 mb-15">
           <Image
             src="/logo-with-text.png"
             alt="Diora Logo"
@@ -261,6 +312,8 @@ export default function Sidebar({ currentProjectSlug, currentProjectName }: Side
             onClick={() => {
               if (!showCreateInput) {
                 setShowCreateInput(true);
+                // Collapse project history when dropdown opens
+                setShowAllProjects(false);
               }
             }}
           >
@@ -350,43 +403,64 @@ export default function Sidebar({ currentProjectSlug, currentProjectName }: Side
       </div>
       
       {/* Project History Section */}
-      <div className="px-6 mb-6">
+      <div className={`px-6 ${showAllProjects ? 'mb-0' : 'mb-6'}`}>
         <h2 className="text-md font-primary font-semibold text-black mb-4">
           Project History
         </h2>
         
-        <div className="space-y-2">
-          {/* Project List */}
-          {projects.map((project) => (
-            <div 
-              key={project.id}
-              className={`flex items-center justify-between p-2 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors ${
-                currentProjectSlug === project.slug ? 'bg-gray-100' : ''
-              }`}
-              onClick={() => router.push(`/dashboard/projects/${project.slug}`)}
-            >
-              <div className="flex items-center">
-                <span className="text-xs font-medium text-gray-600">{project.name}</span>
+        <div className={`space-y-2 ${showAllProjects ? 'h-full' : ''}`}>
+          {/* Project List - Show first 4 or all based on state */}
+          <div className={`${showAllProjects && projects.length > 8 ? 'max-h-64 overflow-y-auto custom-scrollbar' : ''}`}>
+            {(showAllProjects ? projects : projects.slice(0, 4)).map((project) => (
+              <div 
+                key={project.id}
+                className={`flex items-center justify-between p-2 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors ${
+                  currentProjectSlug === project.slug ? 'bg-gray-100' : ''
+                }`}
+                onClick={() => router.push(`/dashboard/projects/${project.slug}`)}
+              >
+                <div className="flex items-center">
+                  <span className="text-xs font-medium text-gray-600">{project.name}</span>
+                  {currentProjectSlug === project.slug && (
+                    <div className="w-1 h-1 bg-red-500 rounded-full ml-2"></div>
+                  )}
+                </div>
                 {currentProjectSlug === project.slug && (
-                  <div className="w-1 h-1 bg-red-500 rounded-full ml-2"></div>
+                  <div className="flex items-center">
+                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                    </svg>
+                  </div>
                 )}
               </div>
-              {currentProjectSlug === project.slug && (
-                <div className="flex items-center">
-                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                  </svg>
-                </div>
-              )}
-            </div>
-          ))}
-          
-          {/* Load more link */}
-          <div className="pt-2">
-            <span className="text-xs font-medium text-gray-600 cursor-pointer hover:text-gray-800 transition-colors">
-              + Load more
-            </span>
+            ))}
           </div>
+          
+          {/* Load more/Show less link - only show if more than 4 projects */}
+          {projects.length > 4 && (
+            <div className="pt-2">
+              <span 
+                className="text-xs font-medium text-gray-600 cursor-pointer hover:text-gray-800 transition-colors flex items-center gap-1"
+                onClick={() => setShowAllProjects(!showAllProjects)}
+              >
+                {showAllProjects ? (
+                  <>
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                    </svg>
+                    Show less
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    Show more
+                  </>
+                )}
+              </span>
+            </div>
+          )}
         </div>
       </div>
       

@@ -43,8 +43,15 @@ export default function ProjectPage({ params }: { params: Promise<{ slug: string
           .single();
 
         if (projectError) {
+          // Don't log expected errors (project not found)
+          if (projectError.code === 'PGRST116') {
+            // Project not found - redirect silently
+            router.push('/dashboard');
+            return;
+          }
+          
+          // Log unexpected errors
           console.error('Project fetch error:', projectError);
-          // Redirect to dashboard if project not found
           router.push('/dashboard');
           return;
         }
@@ -64,10 +71,19 @@ export default function ProjectPage({ params }: { params: Promise<{ slug: string
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-t from-[rgb(230,223,253)] via-[rgb(230,223,253)] to-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-2xl font-primary font-semibold text-black mb-4">
-            Loading project...
+      <div className="min-h-screen bg-gradient-to-t from-[rgb(230,223,253)] via-[rgb(230,223,253)] to-white flex">
+        {/* Keep sidebar visible during loading */}
+        <Sidebar 
+          currentProjectSlug={slug}
+          currentProjectName=""
+        />
+        
+        {/* Loading state only in main content */}
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="text-2xl font-primary font-semibold text-black mb-4">
+              Loading project...
+            </div>
           </div>
         </div>
       </div>
@@ -77,10 +93,19 @@ export default function ProjectPage({ params }: { params: Promise<{ slug: string
   // If no project found, show loading (will redirect)
   if (!project) {
     return (
-      <div className="min-h-screen bg-gradient-to-t from-[rgb(230,223,253)] via-[rgb(230,223,253)] to-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-2xl font-primary font-semibold text-black mb-4">
-            Redirecting...
+      <div className="min-h-screen bg-gradient-to-t from-[rgb(230,223,253)] via-[rgb(230,223,253)] to-white flex">
+        {/* Keep sidebar visible during redirect */}
+        <Sidebar 
+          currentProjectSlug={slug}
+          currentProjectName=""
+        />
+        
+        {/* Redirecting state only in main content */}
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="text-2xl font-primary font-semibold text-black mb-4">
+              Redirecting...
+            </div>
           </div>
         </div>
       </div>
