@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { AudioLines } from "lucide-react";
 
 export default function Dashboard() {
   const [firstName, setFirstName] = useState<string>("");
@@ -91,7 +92,6 @@ export default function Dashboard() {
       <div className="w-[18%] min-w-64 bg-white shadow-2xl h-screen flex flex-col">
         {/* Logo in top left corner */}
         <div className="p-6 pb-4 mb-20">
-          <a href="/">
             <Image
               src="/logo-with-text.png"
               alt="Diora Logo"
@@ -100,7 +100,6 @@ export default function Dashboard() {
               className="h-8 w-auto"
               priority
             />
-          </a>
         </div>
         
         {/* Quick Tools Section */}
@@ -165,7 +164,7 @@ export default function Dashboard() {
                 <div className="flex items-center">
                   <span className="text-xs font-medium text-gray-600">{project.name}</span>
                   {project.hasRedDot && (
-                    <div className="w-2 h-2 bg-red-500 rounded-full ml-2"></div>
+                    <div className="w-1 h-1 bg-red-500 rounded-full ml-2"></div>
                   )}
                 </div>
                 {project.hasMenu && (
@@ -212,13 +211,35 @@ export default function Dashboard() {
       
       {/* Main content area */}
       <div className="flex-1 flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-4xl font-primary font-semibold text-black mb-4">
-            Hey, {firstName}! 👋
+        {/* Centered content div */}
+        <div className="flex flex-col items-center text-center">
+          {/* Central circular logo */}
+          <div className="mb-8">
+            <Image
+              src="/logo.gif"
+              alt="Diora Central Logo"
+              width={200}
+              height={200}
+              className="w-48 h-48"
+              priority
+            />
+          </div>
+          
+          {/* Main heading */}
+          <h1 className="font-primary font-semibold text-4xl mb-4 text-black">
+            Let's find some experts
           </h1>
-          <p className="text-lg font-secondary text-gray-600">
-            Welcome to your dashboard
+          
+          {/* Tagline */}
+          <p className="font-primary font-light text-md mb-8 text-black">
+            Diora will find the best matches for your project
           </p>
+          
+          {/* Call to action button */}
+          <button className="w-[160px] h-[40px] bg-[rgb(75,46,182)] text-white rounded-xl font-primary font-light text-[18px] flex items-center justify-center gap-[6px] hover:bg-[rgb(65,36,172)] transition-colors">
+            <AudioLines className="w-3.5 h-3.5" />
+            Start now
+          </button>
         </div>
       </div>
     </div>
