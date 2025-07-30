@@ -77,6 +77,7 @@ export default function Dashboard() {
               height={200}
               className="w-48 h-48"
               priority
+              unoptimized
             />
           </div>
           
