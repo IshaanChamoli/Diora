@@ -5,6 +5,11 @@ import { use } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import Sidebar from "../../components/Sidebar";
+import { List, Pencil, FileText, DollarSign } from "lucide-react";
+import ExpertList from "./components/ExpertList";
+import Questions from "./components/Questions";
+import Insights from "./components/Insights";
+import Financial from "./components/Financial";
 
 interface Project {
   id: string;
@@ -17,6 +22,7 @@ interface Project {
 export default function ProjectPage({ params }: { params: Promise<{ slug: string }> }) {
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
+  const [currentSection, setCurrentSection] = useState<'expert-list' | 'questions' | 'insights' | 'financial'>('expert-list');
   const router = useRouter();
   
   // Unwrap params Promise using React.use()
@@ -122,30 +128,80 @@ export default function ProjectPage({ params }: { params: Promise<{ slug: string
       
       {/* Main content area */}
       <div className="flex-1 p-8">
-        {/* Project Header */}
-        <div className="bg-white rounded-2xl p-6 mb-6 shadow-sm">
-          <h1 className="font-primary font-semibold text-2xl text-black mb-2">
-            {project.name}
-          </h1>
-          <p className="font-secondary text-gray-600 mb-4">
-            {project.description || 'No description available'}
-          </p>
-          <div className="flex gap-2">
-            <span className="px-3 py-1 bg-[rgba(80,44,189,0.1)] text-[rgb(75,46,182)] rounded-full text-xs font-medium">
-              New Project
-            </span>
+        {/* Project Header - new design */}
+        <div className="bg-[rgba(80,44,189,0.06)] border border-[rgb(80,44,189)] rounded-2xl p-8 mb-8" style={{ minHeight: 120 }}>
+          <div className="flex flex-col gap-2">
+            <h1 className="font-primary font-semibold text-3xl text-black mb-1">
+              {project.name}
+            </h1>
+            <p className="font-secondary text-gray-600 mb-2">
+              {project.description || 'No description available'}
+            </p>
+            {/* Placeholder tags/buttons */}
+            <div className="flex gap-2 mt-2">
+              <span className="px-4 py-1 bg-white border border-[rgb(80,44,189)] text-[rgb(80,44,189)] rounded-full text-xs font-medium cursor-pointer hover:bg-[rgba(80,44,189,0.12)] transition-colors">Neurology</span>
+              <span className="px-4 py-1 bg-white border border-[rgb(80,44,189)] text-[rgb(80,44,189)] rounded-full text-xs font-medium cursor-pointer hover:bg-[rgba(80,44,189,0.12)] transition-colors">Drug Discovery</span>
+              <span className="px-4 py-1 bg-white border border-[rgb(80,44,189)] text-[rgb(80,44,189)] rounded-full text-xs font-medium cursor-pointer hover:bg-[rgba(80,44,189,0.12)] transition-colors">AI</span>
+            </div>
           </div>
         </div>
 
-        {/* Project Sections */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm">
-          <h2 className="font-primary font-semibold text-lg text-black mb-4">
-            Project Sections
-          </h2>
-          <p className="font-secondary text-gray-600">
-            This is where the different sections (Experts, Questions, Insights, Financial) will be implemented.
-          </p>
+        {/* Navigation Header */}
+        <div className="flex items-center gap-6 mb-4">
+          <button 
+            onClick={() => setCurrentSection('questions')}
+            className={`flex items-center gap-2 transition-colors text-sm font-medium rounded-lg px-2.5 py-1.5 ${
+              currentSection === 'questions' 
+                ? 'bg-[rgba(80,44,189,0.1)] text-black' 
+                : 'text-gray-500 hover:text-black'
+            }`}
+          >
+            <Pencil className="w-3.5 h-3.5" />
+            Questions
+          </button>
+          <button 
+            onClick={() => setCurrentSection('expert-list')}
+            className={`flex items-center gap-2 transition-colors text-sm font-medium rounded-lg px-2.5 py-1.5 ${
+              currentSection === 'expert-list' 
+                ? 'bg-[rgba(80,44,189,0.1)] text-black' 
+                : 'text-gray-500 hover:text-black'
+            }`}
+          >
+            <List className="w-3.5 h-3.5" />
+            Expert List
+          </button>
+          <button 
+            onClick={() => setCurrentSection('insights')}
+            className={`flex items-center gap-2 transition-colors text-sm font-medium rounded-lg px-2.5 py-1.5 ${
+              currentSection === 'insights' 
+                ? 'bg-[rgba(80,44,189,0.1)] text-black' 
+                : 'text-gray-500 hover:text-black'
+            }`}
+          >
+            <FileText className="w-3.5 h-3.5" />
+            Insights
+          </button>
+          <button 
+            onClick={() => setCurrentSection('financial')}
+            className={`flex items-center gap-2 transition-colors text-sm font-medium rounded-lg px-2.5 py-1.5 ${
+              currentSection === 'financial' 
+                ? 'bg-[rgba(80,44,189,0.1)] text-black' 
+                : 'text-gray-500 hover:text-black'
+            }`}
+          >
+            <DollarSign className="w-4 h-4" />
+            Financial
+          </button>
         </div>
+        
+        {/* Horizontal divider */}
+        <div className="border-b border-gray-400 mb-4"></div>
+
+        {/* Section Content */}
+        {currentSection === 'expert-list' && <ExpertList />}
+        {currentSection === 'questions' && <Questions />}
+        {currentSection === 'insights' && <Insights />}
+        {currentSection === 'financial' && <Financial />}
       </div>
     </div>
   );
