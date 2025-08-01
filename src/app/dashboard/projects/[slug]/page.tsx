@@ -119,7 +119,7 @@ export default function ProjectPage({ params }: { params: Promise<{ slug: string
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-t from-[rgb(230,223,253)] via-[rgb(230,223,253)] to-white flex">
+    <div className="h-screen bg-gradient-to-t from-[rgb(230,223,253)] via-[rgb(230,223,253)] to-white flex overflow-hidden">
       {/* Universal Sidebar with current project info */}
       <Sidebar 
         currentProjectSlug={project.slug}
@@ -127,21 +127,21 @@ export default function ProjectPage({ params }: { params: Promise<{ slug: string
       />
       
       {/* Main content area */}
-      <div className="flex-1 p-8">
+      <div className="flex-1 p-8 overflow-hidden">
         {/* Project Header - new design */}
-        <div className="bg-[rgba(80,44,189,0.06)] border border-[rgb(80,44,189)] rounded-2xl p-8 mb-8" style={{ minHeight: 120 }}>
-          <div className="flex flex-col gap-2">
-            <h1 className="font-primary font-semibold text-3xl text-black mb-1">
+        <div className="bg-[rgba(80,44,189,0.06)] border border-[rgb(80,44,189)] rounded-2xl p-6 mb-6" style={{ minHeight: 100 }}>
+          <div className="flex flex-col gap-1">
+            <h1 className="font-primary font-semibold text-2xl text-black mb-1">
               {project.name}
             </h1>
             <p className="font-secondary text-gray-600 mb-2">
               {project.description || 'No description available'}
             </p>
             {/* Placeholder tags/buttons */}
-            <div className="flex gap-2 mt-2">
-              <span className="px-4 py-1 bg-white border border-[rgb(80,44,189)] text-[rgb(80,44,189)] rounded-full text-xs font-medium cursor-pointer hover:bg-[rgba(80,44,189,0.12)] transition-colors">Neurology</span>
-              <span className="px-4 py-1 bg-white border border-[rgb(80,44,189)] text-[rgb(80,44,189)] rounded-full text-xs font-medium cursor-pointer hover:bg-[rgba(80,44,189,0.12)] transition-colors">Drug Discovery</span>
-              <span className="px-4 py-1 bg-white border border-[rgb(80,44,189)] text-[rgb(80,44,189)] rounded-full text-xs font-medium cursor-pointer hover:bg-[rgba(80,44,189,0.12)] transition-colors">AI</span>
+            <div className="flex gap-2 mt-1">
+              <span className="px-3 py-1 bg-white border border-[rgb(80,44,189)] text-[rgb(80,44,189)] rounded-full text-xs font-medium cursor-pointer hover:bg-[rgba(80,44,189,0.12)] transition-colors">Neurology</span>
+              <span className="px-3 py-1 bg-white border border-[rgb(80,44,189)] text-[rgb(80,44,189)] rounded-full text-xs font-medium cursor-pointer hover:bg-[rgba(80,44,189,0.12)] transition-colors">Drug Discovery</span>
+              <span className="px-3 py-1 bg-white border border-[rgb(80,44,189)] text-[rgb(80,44,189)] rounded-full text-xs font-medium cursor-pointer hover:bg-[rgba(80,44,189,0.12)] transition-colors">AI</span>
             </div>
           </div>
         </div>
@@ -198,10 +198,12 @@ export default function ProjectPage({ params }: { params: Promise<{ slug: string
         <div className="border-b border-gray-400 mb-4"></div>
 
         {/* Section Content */}
-        {currentSection === 'expert-list' && <ExpertList />}
-        {currentSection === 'questions' && <Questions />}
-        {currentSection === 'insights' && <Insights />}
-        {currentSection === 'financial' && <Financial />}
+        <div className="h-[calc(100vh-276px)] overflow-hidden">
+          {currentSection === 'expert-list' && <ExpertList />}
+          {currentSection === 'questions' && <Questions />}
+          {currentSection === 'insights' && <Insights />}
+          {currentSection === 'financial' && <Financial />}
+        </div>
       </div>
     </div>
   );
