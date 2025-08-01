@@ -1,30 +1,109 @@
 import { Plus, Pencil } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
+import { useParams } from "next/navigation";
 
 export default function Questions() {
+  const params = useParams();
+  const projectSlug = params.slug as string;
+  
   const [questions, setQuestions] = useState<string[]>([]);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingText, setEditingText] = useState("");
+  const [loading, setLoading] = useState(true);
 
-  const handleAddQuestion = () => {
-    const newIndex = questions.length;
-    setQuestions([...questions, ""]);
-    setEditingIndex(newIndex);
-    setEditingText("");
+  // Load questions from database on component mount
+  useEffect(() => {
+    async function loadQuestions() {
+      try {
+        const { data, error } = await supabase
+          .from('projects')
+          .select('questions')
+          .eq('slug', projectSlug)
+          .single();
+
+        if (error) {
+          console.error('Error loading questions:', error);
+          // If project doesn't exist yet or questions column is null, start with empty array
+          setQuestions([]);
+          setLoading(false);
+          return;
+        }
+
+        setQuestions(data?.questions || []);
+      } catch (error) {
+        console.error('Error loading questions:', error);
+        // Fallback to empty array if any error occurs
+        setQuestions([]);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    if (projectSlug) {
+      loadQuestions();
+    }
+  }, [projectSlug]);
+
+  // Save questions to database
+  const saveQuestionsToDb = async (updatedQuestions: string[]) => {
+    try {
+      const { error } = await supabase
+        .from('projects')
+        .update({ questions: updatedQuestions })
+        .eq('slug', projectSlug);
+
+      if (error) {
+        console.error('Error saving questions:', error);
+        // If update fails, try to create/initialize the questions column
+        const { error: retryError } = await supabase
+          .from('projects')
+          .update({ questions: updatedQuestions })
+          .eq('slug', projectSlug);
+        
+        if (retryError) {
+          console.error('Retry error saving questions:', retryError);
+        }
+      }
+    } catch (error) {
+      console.error('Error saving questions:', error);
+    }
   };
 
-  const handleSaveQuestion = (index: number) => {
-    if (editingText.trim()) {
-      const updatedQuestions = [...questions];
-      updatedQuestions[index] = editingText.trim();
-      setQuestions(updatedQuestions);
-    } else {
-      // Remove empty question
-      const updatedQuestions = questions.filter((_, i) => i !== index);
-      setQuestions(updatedQuestions);
+  const handleAddQuestion = () => {    
+    const newIndex = questions.length;
+    const newQuestions = [...questions, ""];
+    setQuestions(newQuestions);
+    setEditingIndex(newIndex);
+    setEditingText("");
+    
+    // Save immediately to initialize questions array in database
+    if (projectSlug) {
+      saveQuestionsToDb(newQuestions);
     }
+  };
+
+  const handleSaveQuestion = async (index: number) => {
+    const originalText = questions[index] || "";
+    const newText = editingText.trim();
+    
+    // Immediately update UI state for smooth experience
     setEditingIndex(null);
     setEditingText("");
+    
+    // Check if text actually changed
+    if (newText === originalText) {
+      // No change, don't update database
+      return;
+    }
+    
+    // Always update the question at the same index, never delete
+    const updatedQuestions = [...questions];
+    updatedQuestions[index] = newText; // Keep empty string if newText is empty
+    setQuestions(updatedQuestions);
+    
+    // Save to database in background
+    await saveQuestionsToDb(updatedQuestions);
   };
 
   const handleEditQuestion = (index: number) => {
@@ -42,16 +121,24 @@ export default function Questions() {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="bg-white rounded-t-2xl h-full shadow-sm flex items-center justify-center">
+        <div className="text-gray-500">Loading questions...</div>
+      </div>
+    );
+  }
+
   return (
-    <div className="bg-white rounded-t-2xl h-full shadow-sm">
+    <div className="bg-white rounded-t-2xl h-full shadow-sm flex flex-col">
       {/* Header with title and button */}
-      <div className="flex items-center justify-between p-6 border-b border-gray-100">
+      <div className="flex items-center justify-between p-6 border-b border-gray-100 flex-shrink-0">
         <h2 className="font-primary font-semibold text-xl text-black">
           My Questions
         </h2>
         <button 
           onClick={handleAddQuestion}
-          className="flex items-center gap-2 bg-[rgb(75,46,182)] text-white px-4 py-2 rounded-lg hover:bg-[rgb(65,36,172)] transition-colors"
+          className="flex items-center gap-2 bg-[#502CBD] text-white px-4 py-2 rounded-lg hover:bg-[#4A26B3] transition-colors"
         >
           Add Question
           <Plus className="w-4 h-4 stroke-3" />
@@ -61,7 +148,7 @@ export default function Questions() {
       {/* Content Area */}
       {questions.length === 0 ? (
         // Empty state content - exactly as it was before
-        <div className="flex flex-col items-center justify-center h-full -mt-12">
+        <div className="flex-1 flex flex-col items-center justify-center">
           <div className="text-center max-w-md">
             <div className="flex justify-center mb-4">
               <div className="w-12 h-12 bg-[rgba(75,46,182,0.1)] rounded-full flex items-center justify-center">
@@ -81,67 +168,107 @@ export default function Questions() {
         </div>
       ) : (
         // Questions list
-        <div className="p-6 space-y-3">
-          {questions.map((question, index) => (
-            <div key={index} className={`border rounded-lg p-4 bg-gray-50 ${editingIndex === index ? 'border-[rgb(75,46,182)]' : 'border-gray-200'}`}>
-              {editingIndex === index ? (
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="font-medium text-gray-900">Question {index + 1}</h3>
-                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                    </svg>
+        <div className="flex-1 overflow-hidden">
+          <div className="h-full overflow-y-auto p-6 space-y-3 custom-scrollbar">
+            {questions.map((question, index) => (
+              <div key={index} className={`border rounded-lg p-4 bg-gray-50 ${editingIndex === index ? 'border-[#502CBD]' : 'border-gray-200'}`}>
+                {editingIndex === index ? (
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="font-medium text-gray-900">Question {index + 1}</h3>
+                      <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                      </svg>
+                    </div>
+                    <textarea
+                      value={editingText}
+                      onChange={(e) => setEditingText(e.target.value)}
+                      onKeyPress={(e) => handleKeyPress(e, index)}
+                      onBlur={() => handleSaveQuestion(index)}
+                      className="w-full bg-transparent text-gray-700 focus:outline-none resize-none overflow-hidden"
+                      placeholder="Type your question here..."
+                      autoFocus
+                      style={{
+                        minHeight: '1.25rem',
+                        height: '1.25rem',
+                      }}
+                      onInput={(e) => {
+                        const target = e.target as HTMLTextAreaElement;
+                        target.style.height = '1.25rem';
+                        const scrollHeight = target.scrollHeight;
+                        target.style.height = scrollHeight + 'px';
+                      }}
+                      onFocus={(e) => {
+                        const target = e.target as HTMLTextAreaElement;
+                        // Position cursor at the end
+                        const length = target.value.length;
+                        target.setSelectionRange(length, length);
+                        // Set proper height for existing content
+                        target.style.height = '1.25rem';
+                        const scrollHeight = target.scrollHeight;
+                        target.style.height = scrollHeight + 'px';
+                      }}
+                    />
                   </div>
-                  <textarea
-                    value={editingText}
-                    onChange={(e) => setEditingText(e.target.value)}
-                    onKeyPress={(e) => handleKeyPress(e, index)}
-                    onBlur={() => handleSaveQuestion(index)}
-                    className="w-full bg-transparent text-gray-700 focus:outline-none resize-none overflow-hidden"
-                    placeholder="Type your question here..."
-                    autoFocus
-                    style={{
-                      minHeight: '1.25rem',
-                      height: '1.25rem',
-                    }}
-                    onInput={(e) => {
-                      const target = e.target as HTMLTextAreaElement;
-                      target.style.height = '1.25rem';
-                      const scrollHeight = target.scrollHeight;
-                      target.style.height = scrollHeight + 'px';
-                    }}
-                    onFocus={(e) => {
-                      const target = e.target as HTMLTextAreaElement;
-                      // Position cursor at the end
-                      const length = target.value.length;
-                      target.setSelectionRange(length, length);
-                      // Set proper height for existing content
-                      target.style.height = '1.25rem';
-                      const scrollHeight = target.scrollHeight;
-                      target.style.height = scrollHeight + 'px';
-                    }}
-                  />
-                </div>
-              ) : (
-                <div 
-                  className="cursor-pointer"
-                  onClick={() => handleEditQuestion(index)}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="font-medium text-gray-900">Question {index + 1}</h3>
-                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                    </svg>
+                ) : (
+                  <div 
+                    className="cursor-pointer"
+                    onClick={() => handleEditQuestion(index)}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="font-medium text-gray-900">Question {index + 1}</h3>
+                      <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                      </svg>
+                    </div>
+                    <p className="text-gray-700 break-words whitespace-pre-wrap">
+                      {question || (
+                        <span className="text-gray-400">Type your question here...</span>
+                      )}
+                    </p>
                   </div>
-                  <p className="text-gray-700 break-words whitespace-pre-wrap">
-                    {question || "Click to edit question..."}
-                  </p>
-                </div>
-              )}
-            </div>
-          ))}
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>
   );
+}
+
+// Add custom scrollbar styles
+const styles = `
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #502CBD;
+  border-radius: 2px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #4A26B3;
+}
+
+/* Firefox scrollbar */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #502CBD transparent;
+}
+`;
+
+// Inject styles into the document
+if (typeof document !== 'undefined') {
+  const styleElement = document.createElement('style');
+  styleElement.textContent = styles;
+  if (!document.head.querySelector('style[data-questions-scrollbar]')) {
+    styleElement.setAttribute('data-questions-scrollbar', 'true');
+    document.head.appendChild(styleElement);
+  }
 } 
