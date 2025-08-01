@@ -4,7 +4,8 @@ import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { X, ArrowRight } from "lucide-react";
+import { X, ArrowRight, MoreVertical, Trash } from "lucide-react";
+import { createPortal } from "react-dom";
 
 interface SidebarProps {
   currentProjectSlug?: string;
@@ -24,6 +25,56 @@ let sidebarDataCache: {
   isLoaded: false
 };
 
+// Dropdown Portal Component
+function DropdownPortal({ 
+  projectId, 
+  onDelete, 
+  onClose 
+}: { 
+  projectId: string; 
+  onDelete: (id: string, e: React.MouseEvent) => void; 
+  onClose: () => void; 
+}) {
+  const [position, setPosition] = useState<{x: number, y: number} | null>(null);
+
+  useEffect(() => {
+    // Find the button and calculate position
+    const button = document.querySelector(`[data-project-id="${projectId}"]`);
+    if (button) {
+      const rect = button.getBoundingClientRect();
+      setPosition({
+        x: rect.right + 8, // 8px to the right
+        y: rect.top
+      });
+    }
+  }, [projectId]);
+
+  if (!position) return null;
+
+  const dropdown = (
+    <div 
+      className="fixed bg-gray-900 border border-gray-700 rounded-md shadow-lg z-50 min-w-[100px]"
+      style={{
+        left: position.x,
+        top: position.y
+      }}
+    >
+      <button
+        className="flex items-center gap-2 w-full px-3 py-2 text-left text-xs text-white hover:bg-gray-800 rounded-md transition-colors"
+        onClick={(e) => {
+          onDelete(projectId, e);
+          onClose();
+        }}
+      >
+        <Trash className="w-3 h-3" />
+        Delete
+      </button>
+    </div>
+  );
+
+  return createPortal(dropdown, document.body);
+}
+
 export default function Sidebar({ currentProjectSlug, currentProjectName }: SidebarProps) {
   const [firstName, setFirstName] = useState<string>(sidebarDataCache.firstName);
   const [lastName, setLastName] = useState<string>(sidebarDataCache.lastName);
@@ -34,6 +85,8 @@ export default function Sidebar({ currentProjectSlug, currentProjectName }: Side
   const [error, setError] = useState("");
   const [projects, setProjects] = useState<Array<{ id: string; name: string; slug: string }>>(sidebarDataCache.projects);
   const [showAllProjects, setShowAllProjects] = useState(false);
+  const [hoveredProject, setHoveredProject] = useState<string | null>(null);
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -141,6 +194,65 @@ export default function Sidebar({ currentProjectSlug, currentProjectName }: Side
     }
   };
 
+  const handleDropdownToggle = (projectId: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent navigation
+    setOpenDropdown(openDropdown === projectId ? null : projectId);
+  };
+
+  const handleDeleteProject = async (projectId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setOpenDropdown(null);
+    
+    // Find the project name for the confirmation dialog
+    const project = projects.find(p => p.id === projectId);
+    if (!project) return;
+    
+    // Show confirmation dialog
+    const confirmed = window.confirm(
+      `Are you sure you want to delete "${project.name}"?\n\n` +
+      `This is an entire project and you won't be able to get this information back. ` +
+      `All data associated with this project will be permanently deleted.`
+    );
+    
+    if (!confirmed) {
+      return; // User cancelled, do nothing
+    }
+    
+    try {
+      // Delete project from database
+      const { error } = await supabase
+        .from('projects')
+        .delete()
+        .eq('id', projectId);
+        
+      if (error) {
+        console.error('Error deleting project:', error);
+        alert('Failed to delete project. Please try again.');
+        return;
+      }
+      
+      // Update local state and cache
+      const updatedProjects = projects.filter(p => p.id !== projectId);
+      setProjects(updatedProjects);
+      sidebarDataCache.projects = updatedProjects;
+      
+      // If we deleted the currently selected project, navigate to dashboard or first project
+      if (currentProjectSlug === project.slug) {
+        if (updatedProjects.length > 0) {
+          // Navigate to the first remaining project
+          router.push(`/dashboard/projects/${updatedProjects[0].slug}`);
+        } else {
+          // No projects left, navigate to dashboard home
+          router.push('/dashboard');
+        }
+      }
+      
+    } catch (error) {
+      console.error('Delete project error:', error);
+      alert('An unexpected error occurred while deleting the project.');
+    }
+  };
+
   // Focus input when it appears
   useEffect(() => {
     if (showCreateInput && inputRef.current) {
@@ -172,6 +284,18 @@ export default function Sidebar({ currentProjectSlug, currentProjectName }: Side
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [showCreateInput]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setOpenDropdown(null);
+    };
+
+    if (openDropdown !== null) {
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [openDropdown]);
 
   // Get user initials
   const getInitials = () => {
@@ -418,6 +542,8 @@ export default function Sidebar({ currentProjectSlug, currentProjectName }: Side
                   currentProjectSlug === project.slug ? 'bg-gray-100' : ''
                 }`}
                 onClick={() => router.push(`/dashboard/projects/${project.slug}`)}
+                onMouseEnter={() => setHoveredProject(project.id)}
+                onMouseLeave={() => setHoveredProject(null)}
               >
                 <div className="flex items-center">
                   <span className="text-xs font-medium text-gray-600">{project.name}</span>
@@ -425,13 +551,25 @@ export default function Sidebar({ currentProjectSlug, currentProjectName }: Side
                     <div className="w-1 h-1 bg-red-500 rounded-full ml-2"></div>
                   )}
                 </div>
-                {currentProjectSlug === project.slug && (
-                  <div className="flex items-center">
-                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                    </svg>
-                  </div>
-                )}
+                {/* Always reserve space for the dots to prevent text movement */}
+                <div className="flex items-center relative">
+                  <button
+                    onClick={(e) => handleDropdownToggle(project.id, e)}
+                    className={`p-1 hover:bg-gray-200 rounded transition-colors ${
+                      (currentProjectSlug === project.slug || hoveredProject === project.id)
+                        ? 'opacity-100' 
+                        : 'opacity-0'
+                    }`}
+                    data-project-id={project.id}
+                  >
+                    <MoreVertical className="w-4 h-4 text-gray-400" />
+                  </button>
+                  
+                  {/* Compact dropdown positioned to the right using portal */}
+                  {openDropdown === project.id && (
+                    <DropdownPortal projectId={project.id} onDelete={handleDeleteProject} onClose={() => setOpenDropdown(null)} />
+                  )}
+                </div>
               </div>
             ))}
           </div>
