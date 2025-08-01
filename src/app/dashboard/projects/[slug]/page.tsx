@@ -22,7 +22,7 @@ interface Project {
 export default function ProjectPage({ params }: { params: Promise<{ slug: string }> }) {
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
-  const [currentSection, setCurrentSection] = useState<'expert-list' | 'questions' | 'insights' | 'financial'>('expert-list');
+  const [currentSection, setCurrentSection] = useState<'expert-list' | 'questions' | 'insights' | 'financial'>('questions');
   const router = useRouter();
   
   // Unwrap params Promise using React.use()

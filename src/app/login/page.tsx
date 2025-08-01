@@ -36,7 +36,7 @@ export default function LogIn() {
     setError("");
 
     try {
-      const { error: signInError } = await supabase.auth.signInWithPassword({
+      const { data: authData, error: signInError } = await supabase.auth.signInWithPassword({
         email: formData.email,
         password: formData.password
       });
@@ -44,6 +44,22 @@ export default function LogIn() {
       if (signInError) {
         setError('Email or password is incorrect. Please try again.');
         return;
+      }
+
+      // Verify that the investor profile exists
+      if (authData.user) {
+        const { data: investorData, error: investorError } = await supabase
+          .from('investors')
+          .select('id')
+          .eq('id', authData.user.id)
+          .single();
+
+        if (investorError || !investorData) {
+          // Investor profile doesn't exist - sign out and show error
+          await supabase.auth.signOut();
+          setError('Account not found. Please sign up or contact support.');
+          return;
+        }
       }
 
       // Success!
