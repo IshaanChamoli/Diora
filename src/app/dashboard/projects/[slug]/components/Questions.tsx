@@ -1,4 +1,4 @@
-import { Plus, Pencil } from "lucide-react";
+import { Plus, Pencil, MoreVertical } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useParams } from "next/navigation";
@@ -11,6 +11,7 @@ export default function Questions() {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingText, setEditingText] = useState("");
   const [loading, setLoading] = useState(true);
+  const [openDropdown, setOpenDropdown] = useState<number | null>(null);
 
   // Load questions from database on component mount
   useEffect(() => {
@@ -44,6 +45,18 @@ export default function Questions() {
       loadQuestions();
     }
   }, [projectSlug]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setOpenDropdown(null);
+    };
+
+    if (openDropdown !== null) {
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [openDropdown]);
 
   // Save questions to database
   const saveQuestionsToDb = async (updatedQuestions: string[]) => {
@@ -121,6 +134,38 @@ export default function Questions() {
     }
   };
 
+  const handleDropdownToggle = (index: number, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent triggering edit mode
+    setOpenDropdown(openDropdown === index ? null : index);
+  };
+
+  const handleDeleteQuestion = async (indexToDelete: number) => {
+    // Close the dropdown first
+    setOpenDropdown(null);
+    
+    // Remove the question at the specific index
+    const updatedQuestions = questions.filter((_, index) => index !== indexToDelete);
+    
+    // Update local state immediately for smooth UI
+    setQuestions(updatedQuestions);
+    
+    // Handle editing state adjustments to prevent index mismatches
+    if (editingIndex !== null) {
+      if (editingIndex === indexToDelete) {
+        // If we're deleting the question being edited, exit edit mode
+        setEditingIndex(null);
+        setEditingText("");
+      } else if (editingIndex > indexToDelete) {
+        // If we're editing a question after the deleted one, adjust the index down by 1
+        setEditingIndex(editingIndex - 1);
+      }
+      // If editingIndex < indexToDelete, no adjustment needed
+    }
+    
+    // Save updated array to database
+    await saveQuestionsToDb(updatedQuestions);
+  };
+
   if (loading) {
     return (
       <div className="bg-white rounded-t-2xl h-full shadow-sm flex items-center justify-center">
@@ -176,9 +221,28 @@ export default function Questions() {
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <h3 className="font-medium text-gray-900">Question {index + 1}</h3>
-                      <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                      </svg>
+                      <div className="relative">
+                        <button
+                          onClick={(e) => handleDropdownToggle(index, e)}
+                          className="p-1 hover:bg-gray-200 rounded transition-colors"
+                        >
+                          <MoreVertical className="w-4 h-4 text-gray-400" />
+                        </button>
+                        {openDropdown === index && (
+                          <div className="absolute right-0 top-full mt-1 bg-gray-900 border border-gray-700 rounded-lg shadow-lg z-10 min-w-[120px]">
+                            <button
+                              className="flex items-center gap-2 w-full px-4 py-3 text-left text-sm text-white hover:bg-gray-800 rounded-lg transition-colors"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenDropdown(null);
+                                handleDeleteQuestion(index);
+                              }}
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <textarea
                       value={editingText}
@@ -217,9 +281,28 @@ export default function Questions() {
                   >
                     <div className="flex items-center justify-between mb-2">
                       <h3 className="font-medium text-gray-900">Question {index + 1}</h3>
-                      <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                      </svg>
+                      <div className="relative">
+                        <button
+                          onClick={(e) => handleDropdownToggle(index, e)}
+                          className="p-1 hover:bg-gray-200 rounded transition-colors"
+                        >
+                          <MoreVertical className="w-4 h-4 text-gray-400" />
+                        </button>
+                        {openDropdown === index && (
+                          <div className="absolute right-0 top-full mt-1 bg-gray-900 border border-gray-700 rounded-lg shadow-lg z-10 min-w-[120px]">
+                            <button
+                              className="flex items-center gap-2 w-full px-4 py-3 text-left text-sm text-white hover:bg-gray-800 rounded-lg transition-colors"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenDropdown(null);
+                                handleDeleteQuestion(index);
+                              }}
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <p className="text-gray-700 break-words whitespace-pre-wrap">
                       {question || (
