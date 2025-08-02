@@ -332,7 +332,7 @@ export default function Questions() {
           customStyles={{
             position: 'fixed',
             bottom: '20px',
-            right: '50px',
+            right: '20px',
             zIndex: 50
           }}
         />
