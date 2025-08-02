@@ -216,7 +216,7 @@ export default function Questions() {
         <div className="flex-1 overflow-hidden">
           <div className="h-full overflow-y-auto p-6 space-y-3 custom-scrollbar">
             {questions.map((question, index) => (
-              <div key={index} className={`border rounded-lg p-4 bg-gray-50 ${editingIndex === index ? 'border-[#502CBD]' : 'border-gray-200'}`}>
+              <div key={index} className={`border rounded-lg p-4 bg-black/5 ${editingIndex === index ? 'border-[#502CBD]' : 'border-black/20'}`}>
                 {editingIndex === index ? (
                   <div>
                     <div className="flex items-center justify-between mb-2">
