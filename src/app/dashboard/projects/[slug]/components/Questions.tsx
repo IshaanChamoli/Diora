@@ -327,7 +327,6 @@ export default function Questions() {
       {/* Voice Button - positioned in bottom right corner */}
       <div className="absolute bottom-4 right-4">
         <VoiceButton 
-          width={40}
           agentType="questions"
           collapsed={isVoiceButtonCollapsed}
           customStyles={{
