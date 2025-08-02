@@ -1,6 +1,6 @@
 // Expert Card Component
 const ExpertCard = ({ name, title }: { name: string; title: string }) => (
-  <div className="bg-black/5 border border-black/20 rounded-lg p-4">
+  <div className="bg-black/5 border border-black/20 rounded-2xl p-4">
     <h4 className="font-primary font-semibold text-sm text-black mb-1">
       {name}
     </h4>
