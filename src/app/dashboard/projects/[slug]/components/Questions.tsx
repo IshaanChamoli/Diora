@@ -2,16 +2,23 @@ import { Plus, Pencil, MoreVertical } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useParams } from "next/navigation";
+import VoiceButton from "@/components/voice/VoiceButton";
+import { useVoice } from "@/components/voice/VoiceProvider";
 
 export default function Questions() {
   const params = useParams();
   const projectSlug = params.slug as string;
+  const { isCallActive } = useVoice();
   
   const [questions, setQuestions] = useState<string[]>([]);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingText, setEditingText] = useState("");
   const [loading, setLoading] = useState(true);
   const [openDropdown, setOpenDropdown] = useState<number | null>(null);
+
+  // Control voice button collapsed state
+  // You can customize this logic however you want!
+  const isVoiceButtonCollapsed = isCallActive; // Collapse when call is active
 
   // Load questions from database on component mount
   useEffect(() => {
@@ -175,7 +182,7 @@ export default function Questions() {
   }
 
   return (
-    <div className="bg-white rounded-t-2xl h-full shadow-sm flex flex-col">
+    <div className="bg-white rounded-t-2xl h-full shadow-sm flex flex-col relative">
       {/* Header with title and button */}
       <div className="flex items-center justify-between p-6 border-b border-gray-100 flex-shrink-0">
         <h2 className="font-primary font-semibold text-xl text-black">
@@ -316,6 +323,21 @@ export default function Questions() {
           </div>
         </div>
       )}
+
+      {/* Voice Button - positioned in bottom right corner */}
+      <div className="absolute bottom-4 right-4">
+        <VoiceButton 
+          width={40}
+          agentType="questions"
+          collapsed={isVoiceButtonCollapsed}
+          customStyles={{
+            position: 'fixed',
+            bottom: '20px',
+            right: '20px',
+            zIndex: 50
+          }}
+        />
+      </div>
     </div>
   );
 }
