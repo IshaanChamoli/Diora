@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useVoice } from "./VoiceProvider";
 import { vapiService } from "@/lib/vapi";
 import { HelpCircle, Phone, Mic, MicOff } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 
 interface VoiceButtonProps {
   width?: number;
@@ -21,15 +21,29 @@ export default function VoiceButton({
 }: VoiceButtonProps) {
   const { isCallActive, startCall, endCall } = useVoice();
   const [isMuted, setIsMuted] = useState(false);
+  const [showOptions, setShowOptions] = useState(false);
+  const optionsRef = useRef<HTMLDivElement>(null);
+  const gifRef = useRef<HTMLButtonElement>(null);
 
   const handleVoiceClick = async () => {
-    if (isCallActive) {
-      await vapiService.endCall();
-      endCall();
-    } else {
+    if (!isCallActive) {
+      // Inactive → Active + show options immediately
       await vapiService.startCall(agentType);
       startCall(agentType);
+      setShowOptions(true);
+    } else if (!showOptions) {
+      // Active + no options → show options
+      setShowOptions(true);
+    } else {
+      // Active + options showing → hide options
+      setShowOptions(false);
     }
+  };
+
+  const handleEndCall = async () => {
+    await vapiService.endCall();
+    endCall();
+    setShowOptions(false);
   };
 
   const handleMuteToggle = () => {
@@ -37,59 +51,81 @@ export default function VoiceButton({
     // TODO: Implement actual mute functionality with Vapi
   };
 
+  // Handle clicking outside to close options
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (optionsRef.current && !optionsRef.current.contains(target) && 
+          gifRef.current && !gifRef.current.contains(target)) {
+        setShowOptions(false);
+      }
+    };
+
+    if (isCallActive && showOptions) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [isCallActive, showOptions]);
+
   // When collapsed, just show the gif by itself
   if (collapsed) {
     return (
       <div className="flex flex-col items-center" style={customStyles}>
-        {/* Call options - 3 white circles above the GIF */}
-        <div className="flex flex-col items-center gap-3 mb-3">
-          {/* Help */}
-          <div className="grid grid-cols-[1fr_auto] items-center gap-3 w-full max-w-[200px]">
-            <button className="bg-white rounded-full px-3 py-1.5 transition-all duration-200 shadow-xl hover:shadow-xl hover:bg-gray-50 flex items-center justify-center border border-black justify-self-end">
-              <span className="text-xs font-primary font-medium text-gray-700">
-                Help
-              </span>
-            </button>
-            <div className="w-10 h-10 bg-white rounded-full shadow-xl flex items-center justify-center border border-[#502CBD]">
-              <HelpCircle className="w-5 h-5 text-[#502CBD]" />
+        {/* Call options - only show when call is active and options are open */}
+        {isCallActive && showOptions && (
+          <div ref={optionsRef} className="flex flex-col items-center gap-3 mb-3">
+            {/* Help */}
+            <div className="grid grid-cols-[1fr_auto] items-center gap-3 w-full max-w-[200px]">
+              <button className="bg-white rounded-full px-3 py-1.5 transition-all duration-200 shadow-xl hover:shadow-xl hover:bg-gray-50 flex items-center justify-center border border-black justify-self-end">
+                <span className="text-xs font-primary font-medium text-gray-700">
+                  Help
+                </span>
+              </button>
+              <div className="w-10 h-10 bg-white rounded-full shadow-xl flex items-center justify-center border border-[#502CBD]">
+                <HelpCircle className="w-5 h-5 text-[#502CBD]" />
+              </div>
+            </div>
+            
+            {/* End Call */}
+            <div className="grid grid-cols-[1fr_auto] items-center gap-3 w-full max-w-[200px]">
+              <button className="bg-white rounded-full px-3 py-1.5 transition-all duration-200 shadow-xl hover:shadow-xl hover:bg-gray-50 flex items-center justify-center border border-black justify-self-end">
+                <span className="text-xs font-primary font-medium text-gray-700">
+                  End Call
+                </span>
+              </button>
+              <button 
+                onClick={handleEndCall}
+                className="w-10 h-10 bg-[#FF0000] rounded-full shadow-xl flex items-center justify-center hover:bg-red-600 transition-colors"
+              >
+                <Phone className="w-5 h-5 text-white" />
+              </button>
+            </div>
+            
+            {/* Mute Mic */}
+            <div className="grid grid-cols-[1fr_auto] items-center gap-3 w-full max-w-[200px]">
+              <button className="bg-white rounded-full px-3 py-1.5 transition-all duration-200 shadow-xl hover:shadow-xl hover:bg-gray-50 flex items-center justify-center border border-black justify-self-end">
+                <span className="text-xs font-primary font-medium text-gray-700">
+                  Mute Mic
+                </span>
+              </button>
+              <button 
+                onClick={handleMuteToggle}
+                className="w-10 h-10 bg-white rounded-full shadow-xl flex items-center justify-center hover:bg-gray-50 transition-colors border border-[#502CBD]"
+              >
+                {isMuted ? (
+                  <MicOff className="w-5 h-5 text-[#502CBD]" />
+                ) : (
+                  <Mic className="w-5 h-5 text-[#502CBD]" />
+                )}
+              </button>
             </div>
           </div>
-          
-          {/* End Call */}
-          <div className="grid grid-cols-[1fr_auto] items-center gap-3 w-full max-w-[200px]">
-            <button className="bg-white rounded-full px-3 py-1.5 transition-all duration-200 shadow-xl hover:shadow-xl hover:bg-gray-50 flex items-center justify-center border border-black justify-self-end">
-              <span className="text-xs font-primary font-medium text-gray-700">
-                End Call
-              </span>
-            </button>
-            <div className="w-10 h-10 bg-[#FF0000] rounded-full shadow-xl flex items-center justify-center">
-              <Phone className="w-5 h-5 text-white" />
-            </div>
-          </div>
-          
-          {/* Mute Mic */}
-          <div className="grid grid-cols-[1fr_auto] items-center gap-3 w-full max-w-[200px]">
-            <button className="bg-white rounded-full px-3 py-1.5 transition-all duration-200 shadow-xl hover:shadow-xl hover:bg-gray-50 flex items-center justify-center border border-black justify-self-end">
-              <span className="text-xs font-primary font-medium text-gray-700">
-                Mute Mic
-              </span>
-            </button>
-            <button 
-              onClick={handleMuteToggle}
-              className="w-10 h-10 bg-white rounded-full shadow-xl flex items-center justify-center hover:bg-gray-50 transition-colors border border-[#502CBD]"
-            >
-              {isMuted ? (
-                <MicOff className="w-5 h-5 text-[#502CBD]" />
-              ) : (
-                <Mic className="w-5 h-5 text-[#502CBD]" />
-              )}
-            </button>
-          </div>
-        </div>
+        )}
         
-        {/* Main GIF button - aligned with circles above */}
+        {/* Main GIF button */}
         <div className="flex justify-end w-full max-w-[200px]">
           <button
+            ref={gifRef}
             onClick={handleVoiceClick}
             className="transition-all duration-200 hover:scale-105"
           >
