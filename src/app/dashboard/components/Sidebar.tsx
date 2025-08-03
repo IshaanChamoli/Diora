@@ -415,6 +415,7 @@ export default function Sidebar({ currentProjectSlug, currentProjectName }: Side
             width={120}
             height={32}
             className="h-8 w-auto"
+            style={{ height: 'auto' }}
             priority
           />
       </div>

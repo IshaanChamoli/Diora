@@ -19,7 +19,7 @@ export default function VoiceButton({
   customStyles = {},
   collapsed = false
 }: VoiceButtonProps) {
-  const { isCallActive, startCall, endCall } = useVoice();
+  const { isCallActive, startCall, endCall, userFirstName } = useVoice();
   const [isMuted, setIsMuted] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
   const optionsRef = useRef<HTMLDivElement>(null);
@@ -28,7 +28,9 @@ export default function VoiceButton({
   const handleVoiceClick = async () => {
     if (!isCallActive) {
       // Inactive → Active + show options immediately
-      await vapiService.startCall(agentType);
+      await vapiService.startCall(agentType, {
+        first_name: userFirstName || 'there'
+      });
       startCall(agentType);
       setShowOptions(true);
     } else if (!showOptions) {

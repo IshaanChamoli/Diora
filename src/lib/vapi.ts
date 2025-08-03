@@ -67,7 +67,7 @@ class VapiService {
     return VapiService.instance;
   }
 
-  async startCall(agentType: string): Promise<void> {
+  async startCall(agentType: string, variableValues?: Record<string, any>): Promise<void> {
     if (!this.isInitialized || !this.vapi) {
       console.error('Vapi not initialized');
       return;
@@ -79,8 +79,10 @@ class VapiService {
     }
 
     try {
-      await this.vapi.start(config.assistantId);
-      console.log(`Started Vapi call with agent: ${agentType}`);
+      await this.vapi.start(config.assistantId, {
+        variableValues: variableValues || {}
+      });
+      console.log(`Started Vapi call with agent: ${agentType}`, variableValues);
     } catch (error) {
       console.error('Error starting Vapi call:', error);
       throw error;
