@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { AudioLines } from "lucide-react";
+import Link from "next/link";
 
 export default function Home() {
   return (
@@ -9,7 +10,7 @@ export default function Home() {
         <div className="flex justify-between items-center">
           {/* Logo on the left */}
           <div>
-            <a href="/">
+            <Link href="/">
               <Image
                 src="/logo-with-text.png"
                 alt="Diora Logo"
@@ -18,17 +19,17 @@ export default function Home() {
                 className="h-8 w-auto"
                 priority
               />
-            </a>
+            </Link>
           </div>
           
           {/* Buttons on the right */}
           <div className="flex gap-3">
-            <a href="/login" className="px-5 py-2 bg-[rgb(75,46,182)] text-white rounded-2xl font-medium hover:bg-[rgb(65,36,172)] transition-colors">
+            <Link href="/login" className="px-5 py-2 bg-[rgb(75,46,182)] text-white rounded-2xl font-medium hover:bg-[rgb(65,36,172)] transition-colors">
               Log in
-            </a>
-            <a href="/signup" className="px-5 py-2 bg-[rgb(230,223,253)] text-[rgb(75,46,182)] border border-[rgb(75,46,182)] rounded-2xl font-medium hover:bg-[rgb(245,243,255)] transition-colors">
+            </Link>
+            <Link href="/signup" className="px-5 py-2 bg-[rgb(230,223,253)] text-[rgb(75,46,182)] border border-[rgb(75,46,182)] rounded-2xl font-medium hover:bg-[rgb(245,243,255)] transition-colors">
               Sign up for free
-            </a>
+            </Link>
           </div>
         </div>
       </header>

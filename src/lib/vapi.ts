@@ -5,6 +5,20 @@ export interface VapiConfig {
   assistantId: string;
 }
 
+// Define proper types for tool calls
+interface ToolCallFunction {
+  arguments: {
+    question_text?: string;
+    question_index?: number;
+    [key: string]: unknown;
+  };
+}
+
+interface ToolCall {
+  function?: ToolCallFunction;
+  [key: string]: unknown;
+}
+
 export const AGENT_CONFIGS: Record<string, VapiConfig> = {
   questions: {
     assistantId: process.env.NEXT_PUBLIC_VAPI_QUESTIONS_ASSISTANT_ID || 'questions-assistant-id',
@@ -26,6 +40,7 @@ class VapiService {
   private isInitialized = false;
   private currentProjectSlug: string | null = null;
   private onAddQuestionCallback: ((questionText: string) => void) | null = null;
+  private onDeleteQuestionCallback: ((questionIndex: number) => void) | null = null;
 
   private constructor() {
     // Initialize Vapi instance
@@ -56,9 +71,15 @@ class VapiService {
           console.log('Tool calls detected:', message.toolCalls); // Debug log
           // Handle tool calls
           for (const toolCall of message.toolCalls) {
+            console.log('Processing tool call:', toolCall.function?.name); // Debug log
             if (toolCall.function?.name === 'add_question') {
               console.log('Add question tool call found:', toolCall); // Debug log
               await this.handleAddQuestionToolCall(toolCall);
+            } else if (toolCall.function?.name === 'delete_question') {
+              console.log('Delete question tool call found:', toolCall); // Debug log
+              await this.handleDeleteQuestionToolCall(toolCall);
+            } else {
+              console.log('Unknown tool call:', toolCall.function?.name); // Debug log
             }
           }
         }
@@ -73,7 +94,7 @@ class VapiService {
     }
   }
 
-  private async handleAddQuestionToolCall(toolCall: any) {
+  private async handleAddQuestionToolCall(toolCall: ToolCall) {
     try {
       // Get the authenticated user's ID
       const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -93,8 +114,33 @@ class VapiService {
         this.onAddQuestionCallback(questionText);
       }
       
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error handling add_question tool call:', error);
+    }
+  }
+
+  private async handleDeleteQuestionToolCall(toolCall: ToolCall) {
+    try {
+      // Get the authenticated user's ID
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) {
+        console.error('Error getting authenticated user:', authError);
+        return;
+      }
+
+      // Get the question index from the tool call arguments
+      const questionIndex = toolCall.function?.arguments?.question_index || 0;
+
+      // Log all three pieces of information
+      console.log(`Delete Tool Call Detected - User: ${user.id}, Project Slug: ${this.currentProjectSlug}, Question Index: ${questionIndex}`);
+      
+      // Call the callback to update the UI
+      if (this.onDeleteQuestionCallback !== null) {
+        this.onDeleteQuestionCallback(questionIndex);
+      }
+      
+    } catch (error: unknown) {
+      console.error('Error handling delete_question tool call:', error);
     }
   }
 
@@ -108,6 +154,11 @@ class VapiService {
     this.onAddQuestionCallback = callback;
   }
 
+  // Method to set the callback for deleting questions
+  setOnDeleteQuestionCallback(callback: (questionIndex: number) => void) {
+    this.onDeleteQuestionCallback = callback;
+  }
+
   static getInstance(): VapiService {
     if (!VapiService.instance) {
       VapiService.instance = new VapiService();
@@ -115,7 +166,7 @@ class VapiService {
     return VapiService.instance;
   }
 
-  async startCall(agentType: string, variableValues?: Record<string, any>): Promise<void> {
+  async startCall(agentType: string, variableValues?: Record<string, unknown>): Promise<void> {
     if (!this.isInitialized || !this.vapi) {
       console.error('Vapi not initialized');
       return;
@@ -139,9 +190,8 @@ class VapiService {
         variableValues: variableValues || {}
       });
       console.log(`Started Vapi call with agent: ${agentType}`, variableValues);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error starting Vapi call:', error);
-      throw error;
     }
   }
 

@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { X, ArrowRight, MoreVertical, Trash } from "lucide-react";
+import { ArrowRight, MoreVertical, Trash } from "lucide-react";
 import { createPortal } from "react-dom";
 
 interface SidebarProps {
@@ -129,7 +129,7 @@ export default function Sidebar({ currentProjectSlug, currentProjectName }: Side
       const slug = generateSlug(projectName.trim());
 
       // Check if project with same slug already exists for this user
-      const { data: existingProject, error: checkError } = await supabase
+      const { data: existingProject } = await supabase
         .from('projects')
         .select('name')
         .eq('slug', slug)
@@ -496,6 +496,11 @@ export default function Sidebar({ currentProjectSlug, currentProjectName }: Side
                     <ArrowRight className="w-3 h-3" />
                   </button>
                 </div>
+                {error && (
+                  <div className="mt-2 text-xs text-red-600 font-medium">
+                    {error}
+                  </div>
+                )}
               </div>
             )}
           </div>

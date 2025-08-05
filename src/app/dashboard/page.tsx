@@ -25,7 +25,7 @@ export default function Dashboard() {
         }
 
         // Check if user has investor profile
-        const { data: investorData, error: investorError } = await supabase
+        const { error: investorError } = await supabase
           .from('investors')
           .select('first_name, last_name')
           .eq('id', user.id)
@@ -85,7 +85,7 @@ export default function Dashboard() {
             
             {/* Main heading */}
             <h1 className="font-primary font-semibold text-4xl mb-4 text-black">
-              Let's find some experts
+              Let&apos;s find some experts
             </h1>
             
             {/* Tagline */}

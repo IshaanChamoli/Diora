@@ -1,5 +1,7 @@
+"use client";
+
 import { Plus, Pencil, MoreVertical } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { useParams } from "next/navigation";
 import VoiceButton from "@/components/voice/VoiceButton";
@@ -17,6 +19,31 @@ export default function Questions() {
   const [loading, setLoading] = useState(true);
   const [openDropdown, setOpenDropdown] = useState<number | null>(null);
 
+  // Save questions to database
+  const saveQuestionsToDb = useCallback(async (updatedQuestions: string[]) => {
+    try {
+      const { error } = await supabase
+        .from('projects')
+        .update({ questions: updatedQuestions })
+        .eq('slug', projectSlug);
+
+      if (error) {
+        console.error('Error saving questions:', error);
+        // If update fails, try to create/initialize the questions column
+        const { error: retryError } = await supabase
+          .from('projects')
+          .update({ questions: updatedQuestions })
+          .eq('slug', projectSlug);
+        
+        if (retryError) {
+          console.error('Retry error saving questions:', retryError);
+        }
+      }
+    } catch (error) {
+      console.error('Error saving questions:', error);
+    }
+  }, [projectSlug]);
+
   // Control voice button collapsed state
   // You can customize this logic however you want!
   const isVoiceButtonCollapsed = isCallActive; // Collapse when call is active
@@ -28,8 +55,9 @@ export default function Questions() {
     }
   }, [projectSlug]);
 
-  // Set up callback for voice tool calls to add questions to UI
+  // Initialize Vapi service
   useEffect(() => {
+    vapiService.setCurrentProjectSlug(projectSlug);
     vapiService.setOnAddQuestionCallback((questionText: string) => {
       // Add the question to the UI state
       setQuestions(prevQuestions => {
@@ -40,11 +68,23 @@ export default function Questions() {
       });
     });
 
+    // Set up callback for voice tool calls to delete questions from UI
+    vapiService.setOnDeleteQuestionCallback((questionIndex: number) => {
+      // Delete the question from the UI state
+      setQuestions(prevQuestions => {
+        const newQuestions = prevQuestions.filter((_, index) => index !== questionIndex);
+        // Save to database in background
+        saveQuestionsToDb(newQuestions);
+        return newQuestions;
+      });
+    });
+
     // Cleanup callback when component unmounts
     return () => {
       vapiService.setOnAddQuestionCallback(() => {});
+      vapiService.setOnDeleteQuestionCallback(() => {});
     };
-  }, []);
+  }, [saveQuestionsToDb, projectSlug]);
 
   // Load questions from database on component mount
   useEffect(() => {
@@ -90,31 +130,6 @@ export default function Questions() {
       return () => document.removeEventListener('click', handleClickOutside);
     }
   }, [openDropdown]);
-
-  // Save questions to database
-  const saveQuestionsToDb = async (updatedQuestions: string[]) => {
-    try {
-      const { error } = await supabase
-        .from('projects')
-        .update({ questions: updatedQuestions })
-        .eq('slug', projectSlug);
-
-      if (error) {
-        console.error('Error saving questions:', error);
-        // If update fails, try to create/initialize the questions column
-        const { error: retryError } = await supabase
-          .from('projects')
-          .update({ questions: updatedQuestions })
-          .eq('slug', projectSlug);
-        
-        if (retryError) {
-          console.error('Retry error saving questions:', retryError);
-        }
-      }
-    } catch (error) {
-      console.error('Error saving questions:', error);
-    }
-  };
 
   const handleAddQuestion = () => {    
     const newIndex = questions.length;
@@ -234,7 +249,7 @@ export default function Questions() {
               </div>
             </div>
             <h3 className="font-primary font-medium text-base text-gray-700 mb-1">
-              I'm able to find you the best experts
+              I&apos;m able to find you the best experts
             </h3>
             <p className="font-primary font-medium text-base text-gray-700 mb-3">
               when I understand your open questions.

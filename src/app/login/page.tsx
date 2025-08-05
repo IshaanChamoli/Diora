@@ -1,87 +1,74 @@
 "use client";
 
-import Image from "next/image";
-import { X, Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { useRouter } from "next/navigation";
+import Image from "next/image";
+import { X, Eye, EyeOff } from "lucide-react";
+import Link from "next/link";
 
 export default function LogIn() {
-  const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
     password: ""
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const router = useRouter();
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    setError(""); // Clear error when user types
   };
 
   const validateForm = () => {
-    if (!formData.email.trim()) return "Email is required";
-    if (!formData.password.trim()) return "Password is required";
-    return null;
+    if (!formData.email || !formData.password) {
+      setError("Please fill in all fields");
+      return false;
+    }
+    return true;
   };
 
   const handleSubmit = async () => {
-    const validationError = validateForm();
-    if (validationError) {
-      setError(validationError);
-      return;
-    }
-
-    setIsLoading(true);
     setError("");
-
+    
+    if (!validateForm()) return;
+    
+    setIsLoading(true);
+    
     try {
-      const { data: authData, error: signInError } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email: formData.email,
-        password: formData.password
+        password: formData.password,
       });
 
-      if (signInError) {
-        setError('Email or password is incorrect. Please try again.');
-        return;
+      if (error) {
+        setError(error.message);
+      } else {
+        router.push('/dashboard');
       }
-
-      // Verify that the investor profile exists
-      if (authData.user) {
-        const { data: investorData, error: investorError } = await supabase
-          .from('investors')
-          .select('id')
-          .eq('id', authData.user.id)
-          .single();
-
-        if (investorError || !investorData) {
-          // Investor profile doesn't exist - sign out and show error
-          await supabase.auth.signOut();
-          setError('Account not found. Please sign up or contact support.');
-          return;
-        }
-      }
-
-      // Success!
-      alert('Logged in successfully! Redirecting to dashboard...');
-      window.location.href = '/dashboard';
-      
-    } catch (err) {
-      setError('An unexpected error occurred. Please try again.');
-      console.error('Login error:', err);
+    } catch {
+      setError("An unexpected error occurred");
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="relative min-h-screen">
-      {/* Header with logo and buttons - using absolute positioning for perfect spacing */}
+    <div className="min-h-screen bg-gradient-to-t from-[rgb(230,223,253)] via-[rgb(230,223,253)] to-white relative">
+      {/* Background pattern */}
+      <div className="absolute inset-0 opacity-5">
+        <div className="absolute inset-0" style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23000000' fill-opacity='0.1'%3E%3Ccircle cx='30' cy='30' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+        }} />
+      </div>
+
+      {/* Header */}
       <header className="absolute top-6 left-6 right-6 z-10">
         <div className="flex justify-between items-center">
           {/* Logo on the left */}
           <div>
-            <a href="/">
+            <Link href="/">
               <Image
                 src="/logo-with-text.png"
                 alt="Diora Logo"
@@ -90,17 +77,17 @@ export default function LogIn() {
                 className="h-8 w-auto"
                 priority
               />
-            </a>
+            </Link>
           </div>
           
           {/* Buttons on the right */}
           <div className="flex gap-3">
-            <a href="/login" className="px-5 py-2 bg-[rgb(75,46,182)] text-white rounded-2xl font-medium hover:bg-[rgb(65,36,172)] transition-colors">
+            <Link href="/login" className="px-5 py-2 bg-[rgb(75,46,182)] text-white rounded-2xl font-medium hover:bg-[rgb(65,36,172)] transition-colors">
               Log in
-            </a>
-            <a href="/signup" className="px-5 py-2 bg-[rgb(230,223,253)] text-[rgb(75,46,182)] border border-[rgb(75,46,182)] rounded-2xl font-medium hover:bg-[rgb(245,243,255)] transition-colors">
+            </Link>
+            <Link href="/signup" className="px-5 py-2 bg-[rgb(230,223,253)] text-[rgb(75,46,182)] border border-[rgb(75,46,182)] rounded-2xl font-medium hover:bg-[rgb(245,243,255)] transition-colors">
               Sign up for free
-            </a>
+            </Link>
           </div>
         </div>
       </header>
@@ -110,9 +97,9 @@ export default function LogIn() {
         {/* Log-in modal */}
         <div className="bg-gradient-to-t from-[rgb(230,223,253)] via-[rgb(230,223,253)] to-white rounded-2xl shadow-2xl relative p-8 max-w-md w-full mx-4">
           {/* Close button */}
-          <a href="/" className="absolute top-6 right-6 text-[rgb(75,46,182)] hover:text-[rgb(65,36,172)] transition-colors">
+          <Link href="/" className="absolute top-6 right-6 text-[rgb(75,46,182)] hover:text-[rgb(65,36,172)] transition-colors">
             <X className="w-5 h-5" />
-          </a>
+          </Link>
           
           {/* Modal content */}
           <div className="flex flex-col items-center text-center pt-8 pb-6">
@@ -177,20 +164,20 @@ export default function LogIn() {
             {/* Footer links */}
             <div className="space-y-4">
               <p className="font-secondary text-sm text-black">
-                Don't have an account?{" "}
-                <a href="/signup" className="text-[rgb(75,46,182)] hover:text-[rgb(65,36,172)] transition-colors">
+                Don&apos;t have an account?{" "}
+                <Link href="/signup" className="text-[rgb(75,46,182)] hover:text-[rgb(65,36,172)] transition-colors">
                   Sign up
-                </a>
+                </Link>
               </p>
               
               <div className="font-secondary text-xs text-[rgb(75,46,182)]">
-                <a href="/terms-of-use" className="hover:text-[rgb(65,36,172)] transition-colors underline">
+                <Link href="/terms-of-use" className="hover:text-[rgb(65,36,172)] transition-colors underline">
                   Terms of use
-                </a>
+                </Link>
                 <span className="mx-2 text-gray-400">|</span>
-                <a href="/privacy-policy" className="hover:text-[rgb(65,36,172)] transition-colors underline">
+                <Link href="/privacy-policy" className="hover:text-[rgb(65,36,172)] transition-colors underline">
                   Privacy Policy
-                </a>
+                </Link>
               </div>
             </div>
           </div>
