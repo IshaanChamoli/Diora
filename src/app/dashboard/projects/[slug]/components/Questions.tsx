@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { useParams } from "next/navigation";
 import VoiceButton from "@/components/voice/VoiceButton";
 import { useVoice } from "@/components/voice/VoiceProvider";
+import { vapiService } from "@/lib/vapi";
 
 export default function Questions() {
   const params = useParams();
@@ -19,6 +20,26 @@ export default function Questions() {
   // Control voice button collapsed state
   // You can customize this logic however you want!
   const isVoiceButtonCollapsed = isCallActive; // Collapse when call is active
+
+  // Set the current project slug in Vapi service when component mounts
+  useEffect(() => {
+    if (projectSlug) {
+      vapiService.setCurrentProjectSlug(projectSlug);
+    }
+  }, [projectSlug]);
+
+  // Set up callback for voice tool calls to add questions to UI
+  useEffect(() => {
+    vapiService.setOnAddQuestionCallback((questionText: string) => {
+      // Add the question to the UI state
+      setQuestions(prevQuestions => [...prevQuestions, questionText]);
+    });
+
+    // Cleanup callback when component unmounts
+    return () => {
+      vapiService.setOnAddQuestionCallback(() => {});
+    };
+  }, []);
 
   // Load questions from database on component mount
   useEffect(() => {

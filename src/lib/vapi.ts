@@ -1,4 +1,5 @@
 import Vapi from '@vapi-ai/web';
+import { supabase } from './supabase';
 
 export interface VapiConfig {
   assistantId: string;
@@ -23,6 +24,8 @@ class VapiService {
   private static instance: VapiService;
   private vapi: Vapi | null = null;
   private isInitialized = false;
+  private currentProjectSlug: string | null = null;
+  private onAddQuestionCallback: ((questionText: string) => void) | null = null;
 
   private constructor() {
     // Initialize Vapi instance
@@ -45,9 +48,19 @@ class VapiService {
         console.log('Vapi call ended');
       });
       
-      this.vapi.on('message', (message) => {
+      this.vapi.on('message', async (message) => {
+        console.log('Vapi message received:', message); // Debug log
         if (message.type === 'transcript') {
           console.log(`${message.role}: ${message.transcript}`);
+        } else if (message.type === 'tool-calls') {
+          console.log('Tool calls detected:', message.toolCalls); // Debug log
+          // Handle tool calls
+          for (const toolCall of message.toolCalls) {
+            if (toolCall.function?.name === 'add_question') {
+              console.log('Add question tool call found:', toolCall); // Debug log
+              await this.handleAddQuestionToolCall(toolCall);
+            }
+          }
         }
       });
       
@@ -58,6 +71,41 @@ class VapiService {
     } catch (error) {
       console.error('Failed to initialize Vapi:', error);
     }
+  }
+
+  private async handleAddQuestionToolCall(toolCall: any) {
+    try {
+      // Get the authenticated user's ID
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) {
+        console.error('Error getting authenticated user:', authError);
+        return;
+      }
+
+      // Get the question text from the tool call arguments
+      const questionText = toolCall.function?.arguments?.question_text || '';
+
+      // Log all three pieces of information
+      console.log(`Tool Call Detected - User: ${user.id}, Project Slug: ${this.currentProjectSlug}, Question Text: ${questionText}`);
+      
+      // Call the callback to update the UI
+      if (this.onAddQuestionCallback && questionText) {
+        this.onAddQuestionCallback(questionText);
+      }
+      
+    } catch (error) {
+      console.error('Error handling add_question tool call:', error);
+    }
+  }
+
+  // Method to set the current project slug
+  setCurrentProjectSlug(slug: string) {
+    this.currentProjectSlug = slug;
+  }
+
+  // Method to set the callback for adding questions
+  setOnAddQuestionCallback(callback: (questionText: string) => void) {
+    this.onAddQuestionCallback = callback;
   }
 
   static getInstance(): VapiService {
@@ -79,6 +127,14 @@ class VapiService {
     }
 
     try {
+      // Log user ID and project slug when call starts
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) {
+        console.error('Error getting authenticated user on call start:', authError);
+      } else {
+        console.log(`Vapi Call Started - User: ${user.id}, Project Slug: ${this.currentProjectSlug}`);
+      }
+
       await this.vapi.start(config.assistantId, {
         variableValues: variableValues || {}
       });
