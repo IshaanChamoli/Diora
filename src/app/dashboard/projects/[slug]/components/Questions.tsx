@@ -32,7 +32,12 @@ export default function Questions() {
   useEffect(() => {
     vapiService.setOnAddQuestionCallback((questionText: string) => {
       // Add the question to the UI state
-      setQuestions(prevQuestions => [...prevQuestions, questionText]);
+      setQuestions(prevQuestions => {
+        const newQuestions = [...prevQuestions, questionText];
+        // Save to database in background
+        saveQuestionsToDb(newQuestions);
+        return newQuestions;
+      });
     });
 
     // Cleanup callback when component unmounts
