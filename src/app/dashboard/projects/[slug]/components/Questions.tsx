@@ -1,7 +1,7 @@
 "use client";
 
 import { Plus, Pencil, MoreVertical } from "lucide-react";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { useParams } from "next/navigation";
 import VoiceButton from "@/components/voice/VoiceButton";
@@ -18,6 +18,7 @@ export default function Questions() {
   const [editingText, setEditingText] = useState("");
   const [loading, setLoading] = useState(true);
   const [openDropdown, setOpenDropdown] = useState<number | null>(null);
+  const questionsContainerRef = useRef<HTMLDivElement>(null);
 
   // Save questions to database
   const saveQuestionsToDb = useCallback(async (updatedQuestions: string[]) => {
@@ -48,6 +49,24 @@ export default function Questions() {
   // You can customize this logic however you want!
   const isVoiceButtonCollapsed = isCallActive; // Collapse when call is active
 
+  // Function to smoothly scroll to bottom
+  const scrollToBottom = () => {
+    if (questionsContainerRef.current) {
+      questionsContainerRef.current.scrollTo({
+        top: questionsContainerRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
+  };
+
+  // Scroll to bottom whenever questions array changes (new question added)
+  useEffect(() => {
+    if (questions.length > 0) {
+      // Small delay to ensure DOM has updated
+      setTimeout(scrollToBottom, 100);
+    }
+  }, [questions.length]);
+
   // Set the current project slug in Vapi service when component mounts
   useEffect(() => {
     if (projectSlug) {
@@ -58,6 +77,7 @@ export default function Questions() {
   // Initialize Vapi service
   useEffect(() => {
     vapiService.setCurrentProjectSlug(projectSlug);
+    // Set up callback for voice tool calls to add questions to UI
     vapiService.setOnAddQuestionCallback((questionText: string) => {
       // Add the question to the UI state
       setQuestions(prevQuestions => {
@@ -69,20 +89,20 @@ export default function Questions() {
     });
 
     // Set up callback for voice tool calls to delete questions from UI
-    vapiService.setOnDeleteQuestionCallback((questionIndex: number) => {
-      // Delete the question from the UI state
-      setQuestions(prevQuestions => {
-        const newQuestions = prevQuestions.filter((_, index) => index !== questionIndex);
-        // Save to database in background
-        saveQuestionsToDb(newQuestions);
-        return newQuestions;
-      });
-    });
+    // vapiService.setOnDeleteQuestionCallback((questionIndex: number) => {
+    //   // Delete the question from the UI state
+    //   setQuestions(prevQuestions => {
+    //     const newQuestions = prevQuestions.filter((_, index) => index !== questionIndex);
+    //     // Save to database in background
+    //     saveQuestionsToDb(newQuestions);
+    //     return newQuestions;
+    //   });
+    // });
 
     // Cleanup callback when component unmounts
     return () => {
       vapiService.setOnAddQuestionCallback(() => {});
-      vapiService.setOnDeleteQuestionCallback(() => {});
+      // vapiService.setOnDeleteQuestionCallback(() => {});
     };
   }, [saveQuestionsToDb, projectSlug]);
 
@@ -262,7 +282,7 @@ export default function Questions() {
       ) : (
         // Questions list
         <div className="flex-1 overflow-hidden">
-          <div className="h-full overflow-y-auto p-6 space-y-3 custom-scrollbar">
+          <div className="h-full overflow-y-auto p-6 space-y-3 custom-scrollbar" ref={questionsContainerRef}>
             {questions.map((question, index) => (
               <div key={index} className={`border rounded-2xl p-4 bg-black/5 ${editingIndex === index ? 'border-[#502CBD]' : 'border-black/20'}`}>
                 {editingIndex === index ? (

@@ -10,6 +10,7 @@ interface ToolCallFunction {
   arguments: {
     question_text?: string;
     question_index?: number;
+    description_text?: string;
     [key: string]: unknown;
   };
 }
@@ -40,7 +41,8 @@ class VapiService {
   private isInitialized = false;
   private currentProjectSlug: string | null = null;
   private onAddQuestionCallback: ((questionText: string) => void) | null = null;
-  private onDeleteQuestionCallback: ((questionIndex: number) => void) | null = null;
+  private onAddDescriptionCallback: ((descriptionText: string) => void) | null = null;
+  // private onDeleteQuestionCallback: ((questionIndex: number) => void) | null = null;
 
   private constructor() {
     // Initialize Vapi instance
@@ -75,12 +77,16 @@ class VapiService {
             if (toolCall.function?.name === 'add_question') {
               console.log('Add question tool call found:', toolCall); // Debug log
               await this.handleAddQuestionToolCall(toolCall);
-            } else if (toolCall.function?.name === 'delete_question') {
-              console.log('Delete question tool call found:', toolCall); // Debug log
-              await this.handleDeleteQuestionToolCall(toolCall);
-            } else {
-              console.log('Unknown tool call:', toolCall.function?.name); // Debug log
+            } else if (toolCall.function?.name === 'add_description') {
+              console.log('Add description tool call found:', toolCall); // Debug log
+              await this.handleAddDescriptionToolCall(toolCall);
             }
+            // else if (toolCall.function?.name === 'delete_question') {
+            //   console.log('Delete question tool call found:', toolCall); // Debug log
+            //   await this.handleDeleteQuestionToolCall(toolCall);
+            // } else {
+            //   console.log('Unknown tool call:', toolCall.function?.name); // Debug log
+            // }
           }
         }
       });
@@ -119,7 +125,7 @@ class VapiService {
     }
   }
 
-  private async handleDeleteQuestionToolCall(toolCall: ToolCall) {
+  private async handleAddDescriptionToolCall(toolCall: ToolCall) {
     try {
       // Get the authenticated user's ID
       const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -128,21 +134,46 @@ class VapiService {
         return;
       }
 
-      // Get the question index from the tool call arguments
-      const questionIndex = toolCall.function?.arguments?.question_index || 0;
+      // Get the description text from the tool call arguments
+      const descriptionText = toolCall.function?.arguments?.description_text || '';
 
       // Log all three pieces of information
-      console.log(`Delete Tool Call Detected - User: ${user.id}, Project Slug: ${this.currentProjectSlug}, Question Index: ${questionIndex}`);
+      console.log(`Description Tool Call Detected - User: ${user.id}, Project Slug: ${this.currentProjectSlug}, Description Text: ${descriptionText}`);
       
       // Call the callback to update the UI
-      if (this.onDeleteQuestionCallback !== null) {
-        this.onDeleteQuestionCallback(questionIndex);
+      if (this.onAddDescriptionCallback && descriptionText) {
+        this.onAddDescriptionCallback(descriptionText);
       }
       
     } catch (error: unknown) {
-      console.error('Error handling delete_question tool call:', error);
+      console.error('Error handling add_description tool call:', error);
     }
   }
+
+  // private async handleDeleteQuestionToolCall(toolCall: ToolCall) {
+  //   try {
+  //     // Get the authenticated user's ID
+  //     const { data: { user }, error: authError } = await supabase.auth.getUser();
+  //     if (authError || !user) {
+  //       console.error('Error getting authenticated user:', authError);
+  //       return;
+  //     }
+
+  //     // Get the question index from the tool call arguments
+  //     const questionIndex = toolCall.function?.arguments?.question_index || 0;
+
+  //     // Log all three pieces of information
+  //     console.log(`Delete Tool Call Detected - User: ${user.id}, Project Slug: ${this.currentProjectSlug}, Question Index: ${questionIndex}`);
+      
+  //     // Call the callback to update the UI
+  //     if (this.onDeleteQuestionCallback !== null) {
+  //       this.onDeleteQuestionCallback(questionIndex);
+  //     }
+      
+  //   } catch (error: unknown) {
+  //     console.error('Error handling delete_question tool call:', error);
+  //   }
+  // }
 
   // Method to set the current project slug
   setCurrentProjectSlug(slug: string) {
@@ -154,10 +185,15 @@ class VapiService {
     this.onAddQuestionCallback = callback;
   }
 
-  // Method to set the callback for deleting questions
-  setOnDeleteQuestionCallback(callback: (questionIndex: number) => void) {
-    this.onDeleteQuestionCallback = callback;
+  // Method to set the callback for adding descriptions
+  setOnAddDescriptionCallback(callback: (descriptionText: string) => void) {
+    this.onAddDescriptionCallback = callback;
   }
+
+  // Method to set the callback for deleting questions
+  // setOnDeleteQuestionCallback(callback: (questionIndex: number) => void) {
+  //   this.onDeleteQuestionCallback = callback;
+  // }
 
   static getInstance(): VapiService {
     if (!VapiService.instance) {

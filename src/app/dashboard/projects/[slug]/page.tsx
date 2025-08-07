@@ -11,6 +11,7 @@ import Questions from "./components/Questions";
 import Insights from "./components/Insights";
 import Financial from "./components/Financial";
 import { VoiceProvider } from "@/components/voice/VoiceProvider";
+import { vapiService } from "@/lib/vapi";
 
 interface Project {
   id: string;
@@ -24,10 +25,94 @@ export default function ProjectPage({ params }: { params: Promise<{ slug: string
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentSection, setCurrentSection] = useState<'expert-list' | 'questions' | 'insights' | 'financial'>('questions');
+  const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [editingDescriptionText, setEditingDescriptionText] = useState("");
   const router = useRouter();
   
   // Unwrap params Promise using React.use()
   const { slug } = use(params);
+
+  // Save description to database
+  const saveDescriptionToDb = async (newDescription: string) => {
+    if (!project) return;
+    
+    try {
+      const { error } = await supabase
+        .from('projects')
+        .update({ description: newDescription })
+        .eq('slug', project.slug);
+
+      if (error) {
+        console.error('Error saving description:', error);
+      }
+    } catch (error) {
+      console.error('Error saving description:', error);
+    }
+  };
+
+  // Handle description editing
+  const handleEditDescription = () => {
+    setIsEditingDescription(true);
+    setEditingDescriptionText(project?.description || '');
+  };
+
+  const handleSaveDescription = async () => {
+    if (!project) return;
+    
+    const originalText = project.description || "";
+    const newText = editingDescriptionText.trim();
+    
+    // Exit edit mode immediately for smooth UX
+    setIsEditingDescription(false);
+    setEditingDescriptionText("");
+    
+    // Check if text actually changed
+    if (newText === originalText) {
+      return;
+    }
+    
+    // Update UI immediately
+    setProject(prevProject => {
+      if (!prevProject) return prevProject;
+      return { ...prevProject, description: newText };
+    });
+    
+    // Save to database in background
+    await saveDescriptionToDb(newText);
+  };
+
+  const handleDescriptionKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSaveDescription();
+    } else if (e.key === 'Escape') {
+      setIsEditingDescription(false);
+      setEditingDescriptionText("");
+    }
+  };
+
+  // Set up callback for voice tool calls to update description
+  useEffect(() => {
+    if (project) {
+      vapiService.setCurrentProjectSlug(project.slug);
+      
+      vapiService.setOnAddDescriptionCallback((descriptionText: string) => {
+        // Update the project description in UI
+        setProject(prevProject => {
+          if (!prevProject) return prevProject;
+          const updatedProject = { ...prevProject, description: descriptionText };
+          // Save to database in background
+          saveDescriptionToDb(descriptionText);
+          return updatedProject;
+        });
+      });
+
+      // Cleanup callback when component unmounts
+      return () => {
+        vapiService.setOnAddDescriptionCallback(() => {});
+      };
+    }
+  }, [project]);
 
   useEffect(() => {
     async function fetchProject() {
@@ -131,20 +216,47 @@ export default function ProjectPage({ params }: { params: Promise<{ slug: string
         {/* Main content area */}
         <div className="flex-1 p-8 overflow-hidden">
           {/* Project Header - new design */}
-          <div className="bg-[rgba(80,44,189,0.06)] border border-[rgb(80,44,189)] rounded-2xl p-6 mb-6" style={{ minHeight: 100 }}>
+          <div className="bg-[rgba(80,44,189,0.06)] border border-[rgb(80,44,189)] rounded-2xl pt-6 pr-6 pl-6 pb-2 mb-6 flex flex-col justify-between" style={{ minHeight: 140 }}>
             <div className="flex flex-col gap-1">
               <h1 className="font-primary font-semibold text-2xl text-black mb-1">
                 {project.name}
               </h1>
-              <p className="font-secondary text-gray-600 mb-2">
-                {project.description || 'No description available'}
-              </p>
-              {/* Placeholder tags/buttons */}
-              <div className="flex gap-2 mt-1">
-                <span className="px-3 py-1 bg-white border border-[rgb(80,44,189)] text-[rgb(80,44,189)] rounded-full text-xs font-medium cursor-pointer hover:bg-[rgba(80,44,189,0.12)] transition-colors">Neurology</span>
-                <span className="px-3 py-1 bg-white border border-[rgb(80,44,189)] text-[rgb(80,44,189)] rounded-full text-xs font-medium cursor-pointer hover:bg-[rgba(80,44,189,0.12)] transition-colors">Drug Discovery</span>
-                <span className="px-3 py-1 bg-white border border-[rgb(80,44,189)] text-[rgb(80,44,189)] rounded-full text-xs font-medium cursor-pointer hover:bg-[rgba(80,44,189,0.12)] transition-colors">AI</span>
-              </div>
+              {isEditingDescription ? (
+                <div className="mb-4" style={{ minHeight: '4.5rem', maxHeight: '4.5rem', height: '4.5rem' }}>
+                  <textarea
+                    value={editingDescriptionText}
+                    onChange={(e) => setEditingDescriptionText(e.target.value)}
+                    onKeyPress={handleDescriptionKeyPress}
+                    onBlur={handleSaveDescription}
+                    className="w-full h-full bg-transparent text-gray-600 focus:outline-none resize-none overflow-y-auto font-secondary custom-scrollbar"
+                    placeholder="Add description here..."
+                    autoFocus
+                    style={{
+                      minHeight: '4.5rem',
+                      maxHeight: '4.5rem',
+                      height: '4.5rem',
+                      lineHeight: '1.5rem',
+                    }}
+                    onFocus={(e) => {
+                      const target = e.target as HTMLTextAreaElement;
+                      // Position cursor at the end
+                      const length = target.value.length;
+                      target.setSelectionRange(length, length);
+                    }}
+                  />
+                </div>
+              ) : (
+                <p 
+                  className="font-secondary text-gray-600 mb-4 cursor-pointer hover:text-gray-800 transition-colors custom-scrollbar"
+                  onClick={handleEditDescription}
+                  style={{ lineHeight: '1.5rem', maxHeight: '4.5rem', minHeight: '4.5rem', height: '4.5rem', overflowY: 'auto' }}
+                >
+                  {project.description || (
+                    <span className="text-gray-400">Add description here...</span>
+                  )}
+                </p>
+              )}
+              {/* Tags removed, but space preserved by increased minHeight above */}
             </div>
           </div>
 
