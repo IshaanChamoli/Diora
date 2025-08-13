@@ -398,6 +398,7 @@ export default function Questions() {
         <VoiceButton 
           agentType="questions"
           collapsed={isVoiceButtonCollapsed}
+          projectSlug={projectSlug}
           customStyles={{
             position: 'fixed',
             bottom: '20px',

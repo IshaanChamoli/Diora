@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { use } from "react";
 import { supabase } from "@/lib/supabase";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Sidebar from "../../components/Sidebar";
 import { List, Pencil, FileText, DollarSign } from "lucide-react";
 import ExpertList from "./components/ExpertList";
@@ -25,12 +25,55 @@ export default function ProjectPage({ params }: { params: Promise<{ slug: string
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentSection, setCurrentSection] = useState<'expert-list' | 'questions' | 'insights' | 'financial'>('questions');
+  
+  // Debug current section changes
+  useEffect(() => {
+    console.log('📍 Current section changed to:', currentSection);
+  }, [currentSection]);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [editingDescriptionText, setEditingDescriptionText] = useState("");
   const router = useRouter();
+  const searchParams = useSearchParams();
   
   // Unwrap params Promise using React.use()
   const { slug } = use(params);
+  
+  // Check for section URL parameter and set initial section
+  useEffect(() => {
+    const sectionParam = searchParams.get('section');
+    if (sectionParam && ['expert-list', 'questions', 'insights', 'financial'].includes(sectionParam)) {
+      console.log('🔄 Navigating to section:', sectionParam);
+      setCurrentSection(sectionParam as 'expert-list' | 'questions' | 'insights' | 'financial');
+    }
+  }, [searchParams]);
+
+  // Additional effect to ensure section changes are applied when URL changes
+  useEffect(() => {
+    const handleRouteChange = () => {
+      const currentUrl = new URL(window.location.href);
+      const sectionParam = currentUrl.searchParams.get('section');
+      if (sectionParam && ['expert-list', 'questions', 'insights', 'financial'].includes(sectionParam)) {
+        console.log('🚀 URL changed, switching to section:', sectionParam);
+        setCurrentSection(sectionParam as 'expert-list' | 'questions' | 'insights' | 'financial');
+      }
+    };
+
+    // Listen for popstate events (back/forward button)
+    window.addEventListener('popstate', handleRouteChange);
+    
+    // Listen for custom force expert section event
+    const handleForceExpertSection = () => {
+      console.log('🎯 Force expert section event received');
+      setCurrentSection('expert-list');
+    };
+    
+    window.addEventListener('forceExpertSection', handleForceExpertSection);
+    
+    return () => {
+      window.removeEventListener('popstate', handleRouteChange);
+      window.removeEventListener('forceExpertSection', handleForceExpertSection);
+    };
+  }, []);
 
   // Save description to database
   const saveDescriptionToDb = async (newDescription: string) => {
@@ -281,7 +324,10 @@ export default function ProjectPage({ params }: { params: Promise<{ slug: string
               Questions
             </button>
             <button 
-              onClick={() => setCurrentSection('expert-list')}
+              onClick={() => {
+                console.log('🔄 Expert List button clicked, switching section');
+                setCurrentSection('expert-list');
+              }}
               className={`flex items-center gap-2 transition-colors text-sm font-medium rounded-lg px-2.5 py-1.5 ${
                 currentSection === 'expert-list' 
                   ? 'bg-[rgba(80,44,189,0.1)] text-black' 

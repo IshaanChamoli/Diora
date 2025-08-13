@@ -3,29 +3,59 @@
 import Image from "next/image";
 import { useVoice } from "./VoiceProvider";
 import { vapiService } from "@/lib/vapi";
-import { HelpCircle, Phone, Mic, MicOff } from "lucide-react";
+import { HelpCircle, Phone, Mic, MicOff, ArrowRight } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 
 interface VoiceButtonProps {
   width?: number;
   agentType?: 'questions' | 'experts' | 'insights' | 'dashboard';
   customStyles?: React.CSSProperties;
   collapsed?: boolean; // New prop to control collapsed state
+  projectSlug?: string; // New prop for navigation to experts
 }
 
 export default function VoiceButton({ 
   width = 40, 
   agentType = 'questions',
   customStyles = {},
-  collapsed = false
+  collapsed = false,
+  projectSlug
 }: VoiceButtonProps) {
   const { isCallActive, startCall, endCall, userFirstName, projectId } = useVoice();
   const [isMuted, setIsMuted] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
   const optionsRef = useRef<HTMLDivElement>(null);
   const gifRef = useRef<HTMLButtonElement>(null);
+  const router = useRouter();
+  
+  // Check if continue button is enabled via environment variable
+  const isContinueMode = process.env.NEXT_PUBLIC_VOICE_CONTINUE_BUTTON === 'true';
 
   const handleVoiceClick = async () => {
+    // If in continue mode, end call first then navigate to experts section
+    if (isContinueMode && projectSlug) {
+      // End call if one is active
+      if (isCallActive) {
+        await vapiService.endCall();
+        endCall();
+        setShowOptions(false);
+      }
+      // Navigate to experts section - use replace to ensure proper navigation
+      console.log('🎯 Continue button clicked, navigating to experts for project:', projectSlug);
+      
+      // Force navigation with both URL and direct section setting
+      const targetUrl = `/dashboard/projects/${projectSlug}?section=expert-list`;
+      router.replace(targetUrl);
+      
+      // Also trigger a custom event to force section change
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('forceExpertSection'));
+      }, 50);
+      return;
+    }
+    
+    // Normal voice button behavior
     if (!isCallActive) {
       // Inactive → Active + show options immediately
       await vapiService.startCall(agentType, {
@@ -125,24 +155,62 @@ export default function VoiceButton({
           </div>
         )}
         
-        {/* Main GIF button */}
-        <div className="flex justify-end w-full max-w-[200px]">
-          <button
-            ref={gifRef}
-            onClick={handleVoiceClick}
-            className="transition-all duration-200 hover:scale-105"
-          >
-            <Image
-              src="/ai-logo.gif"
-              alt="Diora AI Logo"
-              width={width}
-              height={width}
-              className={`rounded-full transition-all duration-200 ${isCallActive ? 'animate-pulse' : ''}`}
-              priority
-              unoptimized
-            />
-          </button>
-        </div>
+        {/* Continue button - show text and icon horizontally when continue mode AND options not visible */}
+        {isContinueMode && !showOptions ? (
+          <div className="flex items-center gap-3 justify-end w-full max-w-[200px]">
+            {/* Text button */}
+            <button
+              onClick={handleVoiceClick}
+              className="bg-white rounded-full px-3 py-1.5 transition-all duration-200 shadow-xl hover:shadow-xl hover:bg-gray-50 flex items-center justify-center border border-black"
+            >
+              <span className="text-xs font-primary font-medium text-gray-700">
+                Continue to Experts
+              </span>
+            </button>
+            
+            {/* Icon button */}
+            <button
+              ref={gifRef}
+              onClick={handleVoiceClick}
+              className="transition-all duration-200 hover:scale-105"
+            >
+              <div 
+                className="rounded-full bg-[#502CBD] flex items-center justify-center transition-all duration-200 hover:bg-[#4A26B3]"
+                style={{ width: width, height: width }}
+              >
+                <ArrowRight className="text-white" style={{ width: width * 0.5, height: width * 0.5 }} />
+              </div>
+            </button>
+          </div>
+        ) : (
+          /* Main button - shows arrow only when options visible, or GIF in voice mode */
+          <div className="flex justify-end w-full max-w-[200px]">
+            <button
+              ref={gifRef}
+              onClick={handleVoiceClick}
+              className="transition-all duration-200 hover:scale-105"
+            >
+              {isContinueMode ? (
+                <div 
+                  className="rounded-full bg-[#502CBD] flex items-center justify-center transition-all duration-200 hover:bg-[#4A26B3]"
+                  style={{ width: width, height: width }}
+                >
+                  <ArrowRight className="text-white" style={{ width: width * 0.5, height: width * 0.5 }} />
+                </div>
+              ) : (
+                <Image
+                  src="/ai-logo.gif"
+                  alt="Diora AI Logo"
+                  width={width}
+                  height={width}
+                  className={`rounded-full transition-all duration-200 ${isCallActive ? 'animate-pulse' : ''}`}
+                  priority
+                  unoptimized
+                />
+              )}
+            </button>
+          </div>
+        )}
       </div>
     );
   }
@@ -150,30 +218,39 @@ export default function VoiceButton({
   // When not collapsed, show the full button with text
   return (
     <div className="flex items-center gap-3" style={customStyles}>
-      {/* Text button */}
+      {/* Text button - shows "Continue to Experts" in continue mode */}
       <button
         onClick={handleVoiceClick}
         className="bg-white rounded-full px-3 py-1.5 transition-all duration-200 shadow-xl hover:shadow-xl hover:bg-gray-50 flex items-center justify-center border border-black"
       >
         <span className="text-xs font-primary font-medium text-gray-700">
-          Speak to Diora
+          {isContinueMode ? "Continue to Experts" : "Speak to Diora"}
         </span>
       </button>
       
-      {/* Separate gif */}
+      {/* Icon button - shows arrow in continue mode, GIF otherwise */}
       <button
         onClick={handleVoiceClick}
         className="transition-all duration-200 hover:scale-105"
       >
-        <Image
-          src="/ai-logo.gif"
-          alt="Diora AI Logo"
-          width={width}
-          height={width}
-          className="rounded-full transition-all duration-200"
-          priority
-          unoptimized
-        />
+        {isContinueMode ? (
+          <div 
+            className="rounded-full bg-[#502CBD] flex items-center justify-center transition-all duration-200 hover:bg-[#4A26B3]"
+            style={{ width: width, height: width }}
+          >
+            <ArrowRight className="text-white" style={{ width: width * 0.5, height: width * 0.5 }} />
+          </div>
+        ) : (
+          <Image
+            src="/ai-logo.gif"
+            alt="Diora AI Logo"
+            width={width}
+            height={width}
+            className="rounded-full transition-all duration-200"
+            priority
+            unoptimized
+          />
+        )}
       </button>
     </div>
   );
