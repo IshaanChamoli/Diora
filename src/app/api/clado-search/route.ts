@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 
 // Map-based storage for concurrent searches - each call gets its own "folder"
 const searchResults = new Map<string, any>();           // call-id → clado results
@@ -17,10 +18,81 @@ if (!global.latestCladoResults) {
   global.latestCladoResults = null;
 }
 
+// Initialize Supabase client for server-side operations
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
+const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false
+  }
+});
+
+// Function to save experts to database
+async function saveExpertsToDatabase(results: any, projectId: string, query: string) {
+  if (!results.results || !Array.isArray(results.results)) {
+    console.log('No experts found in results to save');
+    return;
+  }
+
+  console.log(`💾 Saving ${results.results.length} experts to database for project ${projectId}`);
+  console.log(`📊 Experts will be ranked 1-${results.results.length} based on Clado's result order`);
+
+  const expertsToInsert = results.results.map((result: any, index: number) => {
+    const profile = result.profile;
+    
+    // Extract reasoning from all criteria
+    let reasoning = '';
+    if (profile.criteria) {
+      const reasoningParts = [];
+      for (const criteriaKey in profile.criteria) {
+        const criteria = profile.criteria[criteriaKey];
+        if (criteria.reasoning) {
+          reasoningParts.push(criteria.reasoning);
+        }
+      }
+      reasoning = reasoningParts.join('\n\n');
+    }
+
+    // Preserve exact JSON format by converting to string and back to object
+    // This ensures the JSON structure remains exactly as received
+    const preservedJson = JSON.parse(JSON.stringify(result));
+
+    return {
+      name: profile.name || '',
+      project_id: projectId,
+      linkedin_url: profile.linkedin_profile_url || profile.linkedin_url || '',
+      headline: profile.headline || '',
+      summary: profile.summary || '',
+      reasoning: reasoning,
+      for_query: query,
+      rank: index + 1, // 1-indexed rank to preserve Clado's result order
+      raw_json: preservedJson // Store the entire result object with preserved JSON structure
+    };
+  });
+
+  try {
+    const { data, error } = await supabase
+      .from('experts')
+      .insert(expertsToInsert)
+      .select();
+
+    if (error) {
+      console.error('❌ Error saving experts to database:', error);
+    } else {
+      console.log(`✅ Successfully saved ${data.length} experts to database with ranks 1-${data.length}`);
+      console.log(`🔗 Query: "${query}" | Project: ${projectId}`);
+    }
+  } catch (error) {
+    console.error('❌ Exception saving experts to database:', error);
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     // Get unique call identifier for this search
-    const callId = request.headers.get('x-call-id') || `direct-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const callId = request.headers.get('x-call-id') || `direct-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
     
     const rawBody = await request.text();
     let body;
@@ -199,7 +271,12 @@ function startPolling(searchId: string, apiKey: string, callId: string) {
         
         console.log(`Polling stopped for Call ID: ${callId}. Results stored.`);
         
-        // TODO: Phase 3 - Here we'll add code to save experts to database
+        // Save experts to database if we have a valid project ID and query
+        if (projectId && queryText) {
+          await saveExpertsToDatabase(statusData, projectId, queryText);
+        } else {
+          console.log('⚠️ Missing projectId or queryText, skipping database save');
+        }
         
       } else if (statusData.status === 'failed' || statusData.status === 'error') {
         console.error(`Search ${searchId} failed [Call ID: ${callId}]:`, statusData);
