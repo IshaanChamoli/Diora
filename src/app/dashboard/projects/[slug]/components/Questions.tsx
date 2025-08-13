@@ -81,6 +81,14 @@ export default function Questions() {
     vapiService.setOnAddQuestionCallback((questionText: string) => {
       // Add the question to the UI state
       setQuestions(prevQuestions => {
+        // Check if exact same question already exists
+        const questionExists = prevQuestions.some(existingQuestion => existingQuestion === questionText);
+        
+        if (questionExists) {
+          console.log(`Exact same question already exists: ${questionText}`);
+          return prevQuestions; // Return unchanged array
+        }
+        
         const newQuestions = [...prevQuestions, questionText];
         // Save to database in background
         saveQuestionsToDb(newQuestions);

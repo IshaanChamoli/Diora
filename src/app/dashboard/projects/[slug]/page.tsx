@@ -100,6 +100,13 @@ export default function ProjectPage({ params }: { params: Promise<{ slug: string
         // Update the project description in UI
         setProject(prevProject => {
           if (!prevProject) return prevProject;
+          
+          // Check if exact same description already exists
+          if (prevProject.description === descriptionText) {
+            console.log(`Exact same description already exists: ${descriptionText}`);
+            return prevProject; // Return unchanged project
+          }
+          
           const updatedProject = { ...prevProject, description: descriptionText };
           // Save to database in background
           saveDescriptionToDb(descriptionText);
