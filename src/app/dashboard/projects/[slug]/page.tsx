@@ -212,7 +212,7 @@ export default function ProjectPage({ params }: { params: Promise<{ slug: string
   }
 
   return (
-    <VoiceProvider>
+    <VoiceProvider projectSlug={project.slug}>
       <div className="h-screen bg-gradient-to-t from-[rgb(230,223,253)] via-[rgb(230,223,253)] to-white flex overflow-hidden">
         {/* Universal Sidebar with current project info */}
         <Sidebar 

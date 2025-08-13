@@ -9,18 +9,25 @@ interface VoiceContextType {
   startCall: (agentType: string) => void;
   endCall: () => void;
   userFirstName: string | null;
+  projectId: string | null;
 }
 
 const VoiceContext = createContext<VoiceContextType | undefined>(undefined);
 
-export function VoiceProvider({ children }: { children: ReactNode }) {
+interface VoiceProviderProps {
+  children: ReactNode;
+  projectSlug?: string; // Add project slug prop to know which project we're in
+}
+
+export function VoiceProvider({ children, projectSlug }: VoiceProviderProps) {
   const [isCallActive, setIsCallActive] = useState(false);
   const [currentAgent, setCurrentAgent] = useState<string | null>(null);
   const [userFirstName, setUserFirstName] = useState<string | null>(null);
+  const [projectId, setProjectId] = useState<string | null>(null);
 
-  // Fetch user's first name on component mount
+  // Fetch user's first name and project ID on component mount
   useEffect(() => {
-    async function fetchUserFirstName() {
+    async function fetchUserDataAndProject() {
       try {
         const { data: { user }, error: authError } = await supabase.auth.getUser();
         
@@ -29,6 +36,7 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
           return;
         }
 
+        // Fetch user's first name from investors table
         const { data: investorData, error: investorError } = await supabase
           .from('investors')
           .select('first_name')
@@ -42,13 +50,31 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
 
         setUserFirstName(investorData.first_name);
         console.log('✅ User first name fetched:', investorData.first_name);
+
+        // Fetch project ID if projectSlug is provided
+        if (projectSlug) {
+          const { data: projectData, error: projectError } = await supabase
+            .from('projects')
+            .select('id')
+            .eq('slug', projectSlug)
+            .eq('investor_id', user.id)
+            .single();
+
+          if (projectError) {
+            console.error('Error fetching project data:', projectError);
+            return;
+          }
+
+          setProjectId(projectData.id);
+          console.log('✅ Project ID fetched:', projectData.id);
+        }
       } catch (error) {
-        console.error('Error fetching user first name:', error);
+        console.error('Error fetching user data and project:', error);
       }
     }
 
-    fetchUserFirstName();
-  }, []);
+    fetchUserDataAndProject();
+  }, [projectSlug]);
 
   const startCall = (agentType: string) => {
     // TODO: Implement Vapi call start
@@ -70,7 +96,8 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
       currentAgent,
       startCall,
       endCall,
-      userFirstName
+      userFirstName,
+      projectId
     }}>
       {children}
     </VoiceContext.Provider>
