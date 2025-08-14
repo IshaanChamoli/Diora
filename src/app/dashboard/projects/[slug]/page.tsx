@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { use } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -111,7 +111,7 @@ export default function ProjectPage({ params }: { params: Promise<{ slug: string
   }, [slug]);
 
   // Save description to database
-  const saveDescriptionToDb = async (newDescription: string) => {
+  const saveDescriptionToDb = useCallback(async (newDescription: string) => {
     if (!project) return;
     
     try {
@@ -126,7 +126,7 @@ export default function ProjectPage({ params }: { params: Promise<{ slug: string
     } catch (error) {
       console.error('Error saving description:', error);
     }
-  };
+  }, [project]);
 
   // Handle description editing
   const handleEditDescription = () => {
@@ -197,7 +197,7 @@ export default function ProjectPage({ params }: { params: Promise<{ slug: string
         vapiService.setOnAddDescriptionCallback(() => {});
       };
     }
-  }, [project]);
+  }, [project, saveDescriptionToDb]);
 
   useEffect(() => {
     async function fetchProject() {

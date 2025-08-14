@@ -1,8 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
+interface CladoResults {
+  query?: string;
+  user_name?: string;
+  project_id?: string;
+  call_id?: string;
+  status?: string;
+  results?: unknown[];
+  [key: string]: unknown;
+}
+
+interface CladoProfile {
+  name?: string;
+  linkedin_profile_url?: string;
+  linkedin_url?: string;
+  headline?: string;
+  summary?: string;
+  criteria?: Record<string, { reasoning?: string }>;
+  [key: string]: unknown;
+}
+
+interface CladoResult {
+  profile: CladoProfile;
+  [key: string]: unknown;
+}
+
 // Map-based storage for concurrent searches - each call gets its own "folder"
-const searchResults = new Map<string, any>();           // call-id → clado results
+const searchResults = new Map<string, CladoResults>();           // call-id → clado results
 const pollingIntervals = new Map<string, NodeJS.Timeout>(); // call-id → polling timer  
 const queryTexts = new Map<string, string>();           // call-id → original query
 const jobIds = new Map<string, string>();               // call-id → clado job id
@@ -11,7 +36,7 @@ const projectIds = new Map<string, string>();           // call-id → project i
 
 // Keep global for /api/results testing endpoint (will be last completed search)
 declare global {
-  var latestCladoResults: any;
+  var latestCladoResults: CladoResults | null;
 }
 
 if (!global.latestCladoResults) {
@@ -30,7 +55,7 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey, {
 });
 
 // Function to save experts to database
-async function saveExpertsToDatabase(results: any, projectId: string, query: string) {
+async function saveExpertsToDatabase(results: CladoResults, projectId: string, query: string) {
   if (!results.results || !Array.isArray(results.results)) {
     console.log('No experts found in results to save');
     return;
@@ -39,8 +64,9 @@ async function saveExpertsToDatabase(results: any, projectId: string, query: str
   console.log(`💾 Saving ${results.results.length} experts to database for project ${projectId}`);
   console.log(`📊 Experts will be ranked 1-${results.results.length} based on Clado's result order`);
 
-  const expertsToInsert = results.results.map((result: any, index: number) => {
-    const profile = result.profile;
+  const expertsToInsert = results.results.map((result, index: number) => {
+    const typedResult = result as CladoResult;
+    const profile = typedResult.profile;
     
     // Extract reasoning from all criteria
     let reasoning = '';
@@ -57,7 +83,7 @@ async function saveExpertsToDatabase(results: any, projectId: string, query: str
 
     // Preserve exact JSON format by converting to string and back to object
     // This ensures the JSON structure remains exactly as received
-    const preservedJson = JSON.parse(JSON.stringify(result));
+    const preservedJson = JSON.parse(JSON.stringify(typedResult));
 
     return {
       name: profile.name || '',

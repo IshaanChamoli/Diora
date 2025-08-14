@@ -22,6 +22,8 @@ export default function Questions({ questionsDone }: QuestionsProps) {
   const [editingText, setEditingText] = useState("");
   const [loading, setLoading] = useState(true);
   const [openDropdown, setOpenDropdown] = useState<number | null>(null);
+  const [showContinueButton, setShowContinueButton] = useState(false);
+  const [hasReceivedContinueCall, setHasReceivedContinueCall] = useState(false);
   const questionsContainerRef = useRef<HTMLDivElement>(null);
 
   // Save questions to database
@@ -102,6 +104,19 @@ export default function Questions({ questionsDone }: QuestionsProps) {
       });
     });
 
+    // Set up callback for activate_continue_button tool call
+    vapiService.setOnActivateContinueButtonCallback(() => {
+      // Check if we've already received this call to prevent duplicates
+      if (hasReceivedContinueCall) {
+        console.log('Activate continue button call already received, ignoring duplicate');
+        return;
+      }
+      
+      console.log('Activate continue button tool call received - showing continue button');
+      setHasReceivedContinueCall(true);
+      setShowContinueButton(true);
+    });
+
     // Set up callback for voice tool calls to delete questions from UI
     // vapiService.setOnDeleteQuestionCallback((questionIndex: number) => {
     //   // Delete the question from the UI state
@@ -116,9 +131,10 @@ export default function Questions({ questionsDone }: QuestionsProps) {
     // Cleanup callback when component unmounts
     return () => {
       vapiService.setOnAddQuestionCallback(() => {});
+      vapiService.setOnActivateContinueButtonCallback(() => {});
       // vapiService.setOnDeleteQuestionCallback(() => {});
     };
-  }, [saveQuestionsToDb, projectSlug, questionsDone]);
+  }, [saveQuestionsToDb, projectSlug, questionsDone, hasReceivedContinueCall]);
 
   // Load questions from database on component mount
   useEffect(() => {
@@ -417,13 +433,13 @@ export default function Questions({ questionsDone }: QuestionsProps) {
         </div>
       )}
 
-      {/* Voice Button - show continue button when done, voice button when not done */}
+      {/* Voice Button - show continue button when done or when tool call received */}
       <div className="absolute bottom-4 right-4">
         <VoiceButton 
           agentType="questions"
           collapsed={isVoiceButtonCollapsed}
           projectSlug={projectSlug}
-          forceShowContinue={questionsDone}
+          forceShowContinue={questionsDone || showContinueButton}
           customStyles={{
             position: 'fixed',
             bottom: '20px',

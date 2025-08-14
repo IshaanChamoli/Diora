@@ -42,6 +42,7 @@ class VapiService {
   private currentProjectSlug: string | null = null;
   private onAddQuestionCallback: ((questionText: string) => void) | null = null;
   private onAddDescriptionCallback: ((descriptionText: string) => void) | null = null;
+  private onActivateContinueButtonCallback: (() => void) | null = null;
   // private onDeleteQuestionCallback: ((questionIndex: number) => void) | null = null;
 
   private constructor() {
@@ -80,6 +81,9 @@ class VapiService {
             } else if (toolCall.function?.name === 'add_description') {
               console.log('Add description tool call found:', toolCall); // Debug log
               await this.handleAddDescriptionToolCall(toolCall);
+            } else if (toolCall.function?.name === 'activate_continue_button') {
+              console.log('Activate continue button tool call found:', toolCall); // Debug log
+              await this.handleActivateContinueButtonToolCall(toolCall);
             }
             // else if (toolCall.function?.name === 'delete_question') {
             //   console.log('Delete question tool call found:', toolCall); // Debug log
@@ -150,6 +154,28 @@ class VapiService {
     }
   }
 
+  private async handleActivateContinueButtonToolCall(_toolCall: ToolCall) {
+    try {
+      // Get the authenticated user's ID (for consistency with other handlers)
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) {
+        console.error('Error getting authenticated user:', authError);
+        return;
+      }
+
+      // Log the tool call detection
+      console.log(`Activate Continue Button Tool Call Detected - User: ${user.id}, Project Slug: ${this.currentProjectSlug}`);
+      
+      // Call the callback to update the UI (no parameters needed)
+      if (this.onActivateContinueButtonCallback) {
+        this.onActivateContinueButtonCallback();
+      }
+      
+    } catch (error: unknown) {
+      console.error('Error handling activate_continue_button tool call:', error);
+    }
+  }
+
   // private async handleDeleteQuestionToolCall(toolCall: ToolCall) {
   //   try {
   //     // Get the authenticated user's ID
@@ -188,6 +214,11 @@ class VapiService {
   // Method to set the callback for adding descriptions
   setOnAddDescriptionCallback(callback: (descriptionText: string) => void) {
     this.onAddDescriptionCallback = callback;
+  }
+
+  // Method to set the callback for activating continue button
+  setOnActivateContinueButtonCallback(callback: () => void) {
+    this.onActivateContinueButtonCallback = callback;
   }
 
   // Method to set the callback for deleting questions

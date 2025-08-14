@@ -4,9 +4,19 @@ import { NextResponse } from 'next/server';
 // Note: In a production app, you'd want to use a proper data store like Redis
 // For testing purposes, we'll access the same global variable
 
+interface CladoResults {
+  query?: string;
+  user_name?: string;
+  project_id?: string;
+  call_id?: string;
+  status?: string;
+  results?: unknown[];
+  [key: string]: unknown;
+}
+
 // Re-declare the global variable here (it's shared across the Node.js process)
 declare global {
-  var latestCladoResults: any;
+  var latestCladoResults: CladoResults | null;
 }
 
 export async function GET() {
