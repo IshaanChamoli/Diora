@@ -6,6 +6,7 @@ import { vapiService } from "@/lib/vapi";
 import { HelpCircle, Phone, Mic, MicOff, ArrowRight } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 
 interface VoiceButtonProps {
   width?: number;
@@ -13,6 +14,7 @@ interface VoiceButtonProps {
   customStyles?: React.CSSProperties;
   collapsed?: boolean; // New prop to control collapsed state
   projectSlug?: string; // New prop for navigation to experts
+  forceShowContinue?: boolean; // Force continue button regardless of env variable
 }
 
 export default function VoiceButton({ 
@@ -20,7 +22,8 @@ export default function VoiceButton({
   agentType = 'questions',
   customStyles = {},
   collapsed = false,
-  projectSlug
+  projectSlug,
+  forceShowContinue = false
 }: VoiceButtonProps) {
   const { isCallActive, startCall, endCall, userFirstName, projectId } = useVoice();
   const [isMuted, setIsMuted] = useState(false);
@@ -29,8 +32,8 @@ export default function VoiceButton({
   const gifRef = useRef<HTMLButtonElement>(null);
   const router = useRouter();
   
-  // Check if continue button is enabled via environment variable
-  const isContinueMode = process.env.NEXT_PUBLIC_VOICE_CONTINUE_BUTTON === 'true';
+  // Check if continue button is enabled via environment variable OR forced by prop
+  const isContinueMode = process.env.NEXT_PUBLIC_VOICE_CONTINUE_BUTTON === 'true' || forceShowContinue;
 
   const handleVoiceClick = async () => {
     // If in continue mode, end call first then navigate to experts section
@@ -44,13 +47,33 @@ export default function VoiceButton({
       // Navigate to experts section - use replace to ensure proper navigation
       console.log('🎯 Continue button clicked, navigating to experts for project:', projectSlug);
       
+      // Immediately fire event for optimistic UI update
+      window.dispatchEvent(new CustomEvent('continueButtonClicked'));
+      
+      // First, update questions_done to true in the database
+      try {
+        const { error } = await supabase
+          .from('projects')
+          .update({ questions_done: true })
+          .eq('slug', projectSlug);
+
+        if (error) {
+          console.error('Error updating questions_done:', error);
+        } else {
+          console.log('✅ Questions marked as done for project:', projectSlug);
+        }
+      } catch (error) {
+        console.error('Exception updating questions_done:', error);
+      }
+      
       // Force navigation with both URL and direct section setting
       const targetUrl = `/dashboard/projects/${projectSlug}?section=expert-list`;
       router.replace(targetUrl);
       
-      // Also trigger a custom event to force section change
+      // Also trigger events to update the project state and force section change
       setTimeout(() => {
         window.dispatchEvent(new CustomEvent('forceExpertSection'));
+        window.dispatchEvent(new CustomEvent('updateProjectData'));
       }, 50);
       return;
     }

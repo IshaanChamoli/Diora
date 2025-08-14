@@ -148,7 +148,8 @@ export default function Sidebar({ currentProjectSlug, currentProjectName }: Side
         .insert({
           name: projectName.trim(),
           slug: slug,
-          investor_id: user.id
+          investor_id: user.id,
+          questions_done: false
         })
         .select()
         .single();

@@ -19,12 +19,14 @@ interface Project {
   slug: string;
   description: string;
   created_at: string;
+  questions_done: boolean;
 }
 
 export default function ProjectPage({ params }: { params: Promise<{ slug: string }> }) {
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentSection, setCurrentSection] = useState<'expert-list' | 'questions' | 'insights' | 'financial'>('questions');
+  const [optimisticQuestionsDone, setOptimisticQuestionsDone] = useState(false);
   
   // Debug current section changes
   useEffect(() => {
@@ -67,13 +69,46 @@ export default function ProjectPage({ params }: { params: Promise<{ slug: string
       setCurrentSection('expert-list');
     };
     
+    // Listen for continue button click to immediately show tabs optimistically
+    const handleContinueButtonClick = () => {
+      console.log('⚡ Continue button clicked - showing tabs optimistically');
+      setOptimisticQuestionsDone(true);
+    };
+    
+    // Listen for project data update event
+    const handleUpdateProjectData = async () => {
+      console.log('🔄 Updating project data after questions_done change');
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const { data: projectData, error } = await supabase
+          .from('projects')
+          .select('*')
+          .eq('slug', slug)
+          .eq('investor_id', user.id)
+          .single();
+
+        if (!error && projectData) {
+          setProject(projectData);
+          console.log('✅ Project data updated, questions_done:', projectData.questions_done);
+        }
+      } catch (error) {
+        console.error('Error updating project data:', error);
+      }
+    };
+    
     window.addEventListener('forceExpertSection', handleForceExpertSection);
+    window.addEventListener('updateProjectData', handleUpdateProjectData);
+    window.addEventListener('continueButtonClicked', handleContinueButtonClick);
     
     return () => {
       window.removeEventListener('popstate', handleRouteChange);
       window.removeEventListener('forceExpertSection', handleForceExpertSection);
+      window.removeEventListener('updateProjectData', handleUpdateProjectData);
+      window.removeEventListener('continueButtonClicked', handleContinueButtonClick);
     };
-  }, []);
+  }, [slug]);
 
   // Save description to database
   const saveDescriptionToDb = async (newDescription: string) => {
@@ -199,6 +234,15 @@ export default function ProjectPage({ params }: { params: Promise<{ slug: string
         }
 
         setProject(projectData);
+        
+        // Set initial section based on questions_done status
+        if (projectData.questions_done) {
+          console.log('📊 Questions already done, defaulting to expert-list section');
+          setCurrentSection('expert-list');
+        } else {
+          console.log('❓ Questions not done, staying on questions section');
+          setCurrentSection('questions');
+        }
       } catch (error) {
         console.error('Project page error:', error);
         // Redirect to dashboard on any error
@@ -312,6 +356,7 @@ export default function ProjectPage({ params }: { params: Promise<{ slug: string
 
           {/* Navigation Header */}
           <div className="flex items-center gap-6 mb-4">
+            {/* Questions tab - always visible */}
             <button 
               onClick={() => setCurrentSection('questions')}
               className={`flex items-center gap-2 transition-colors text-sm font-medium rounded-lg px-2.5 py-1.5 ${
@@ -323,42 +368,48 @@ export default function ProjectPage({ params }: { params: Promise<{ slug: string
               <Pencil className="w-3.5 h-3.5" />
               Questions
             </button>
-            <button 
-              onClick={() => {
-                console.log('🔄 Expert List button clicked, switching section');
-                setCurrentSection('expert-list');
-              }}
-              className={`flex items-center gap-2 transition-colors text-sm font-medium rounded-lg px-2.5 py-1.5 ${
-                currentSection === 'expert-list' 
-                  ? 'bg-[rgba(80,44,189,0.1)] text-black' 
-                  : 'text-gray-500 hover:text-black'
-              }`}
-            >
-              <List className="w-3.5 h-3.5" />
-              Expert List
-            </button>
-            <button 
-              onClick={() => setCurrentSection('insights')}
-              className={`flex items-center gap-2 transition-colors text-sm font-medium rounded-lg px-2.5 py-1.5 ${
-                currentSection === 'insights' 
-                  ? 'bg-[rgba(80,44,189,0.1)] text-black' 
-                  : 'text-gray-500 hover:text-black'
-              }`}
-            >
-              <FileText className="w-3.5 h-3.5" />
-              Insights
-            </button>
-            <button 
-              onClick={() => setCurrentSection('financial')}
-              className={`flex items-center gap-2 transition-colors text-sm font-medium rounded-lg px-2.5 py-1.5 ${
-                currentSection === 'financial' 
-                  ? 'bg-[rgba(80,44,189,0.1)] text-black' 
-                  : 'text-gray-500 hover:text-black'
-              }`}
-            >
-              <DollarSign className="w-4 h-4" />
-              Financial
-            </button>
+            
+            {/* Other tabs - visible when questions are done (optimistic or confirmed) */}
+            {(project?.questions_done || optimisticQuestionsDone) && (
+              <>
+                <button 
+                  onClick={() => {
+                    console.log('🔄 Expert List button clicked, switching section');
+                    setCurrentSection('expert-list');
+                  }}
+                  className={`flex items-center gap-2 transition-colors text-sm font-medium rounded-lg px-2.5 py-1.5 ${
+                    currentSection === 'expert-list' 
+                      ? 'bg-[rgba(80,44,189,0.1)] text-black' 
+                      : 'text-gray-500 hover:text-black'
+                  }`}
+                >
+                  <List className="w-3.5 h-3.5" />
+                  Expert List
+                </button>
+                <button 
+                  onClick={() => setCurrentSection('insights')}
+                  className={`flex items-center gap-2 transition-colors text-sm font-medium rounded-lg px-2.5 py-1.5 ${
+                    currentSection === 'insights' 
+                      ? 'bg-[rgba(80,44,189,0.1)] text-black' 
+                      : 'text-gray-500 hover:text-black'
+                  }`}
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  Insights
+                </button>
+                <button 
+                  onClick={() => setCurrentSection('financial')}
+                  className={`flex items-center gap-2 transition-colors text-sm font-medium rounded-lg px-2.5 py-1.5 ${
+                    currentSection === 'financial' 
+                      ? 'bg-[rgba(80,44,189,0.1)] text-black' 
+                      : 'text-gray-500 hover:text-black'
+                  }`}
+                >
+                  <DollarSign className="w-4 h-4" />
+                  Financial
+                </button>
+              </>
+            )}
           </div>
           
           {/* Horizontal divider */}
@@ -367,7 +418,7 @@ export default function ProjectPage({ params }: { params: Promise<{ slug: string
           {/* Section Content */}
           <div className="h-[calc(100vh-276px)] overflow-hidden">
             {currentSection === 'expert-list' && <ExpertList />}
-            {currentSection === 'questions' && <Questions />}
+            {currentSection === 'questions' && <Questions questionsDone={project?.questions_done || optimisticQuestionsDone} />}
             {currentSection === 'insights' && <Insights />}
             {currentSection === 'financial' && <Financial />}
           </div>

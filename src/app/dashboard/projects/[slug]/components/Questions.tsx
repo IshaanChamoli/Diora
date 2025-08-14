@@ -8,7 +8,11 @@ import VoiceButton from "@/components/voice/VoiceButton";
 import { useVoice } from "@/components/voice/VoiceProvider";
 import { vapiService } from "@/lib/vapi";
 
-export default function Questions() {
+interface QuestionsProps {
+  questionsDone: boolean;
+}
+
+export default function Questions({ questionsDone }: QuestionsProps) {
   const params = useParams();
   const projectSlug = params.slug as string;
   const { isCallActive } = useVoice();
@@ -74,8 +78,10 @@ export default function Questions() {
     }
   }, [projectSlug]);
 
-  // Initialize Vapi service
+  // Initialize Vapi service - only when questions are not done
   useEffect(() => {
+    if (questionsDone) return; // Don't set up voice callbacks when questions are done
+    
     vapiService.setCurrentProjectSlug(projectSlug);
     // Set up callback for voice tool calls to add questions to UI
     vapiService.setOnAddQuestionCallback((questionText: string) => {
@@ -112,7 +118,7 @@ export default function Questions() {
       vapiService.setOnAddQuestionCallback(() => {});
       // vapiService.setOnDeleteQuestionCallback(() => {});
     };
-  }, [saveQuestionsToDb, projectSlug]);
+  }, [saveQuestionsToDb, projectSlug, questionsDone]);
 
   // Load questions from database on component mount
   useEffect(() => {
@@ -251,19 +257,27 @@ export default function Questions() {
   }
 
   return (
-    <div className="bg-white rounded-t-2xl h-full shadow-sm flex flex-col relative">
+    <div className={`rounded-t-2xl h-full shadow-sm flex flex-col relative ${
+      questionsDone 
+        ? 'bg-gray-50 border border-gray-200' 
+        : 'bg-white'
+    }`}>
       {/* Header with title and button */}
       <div className="flex items-center justify-between p-6 border-b border-gray-100 flex-shrink-0">
-        <h2 className="font-primary font-semibold text-xl text-black">
-          My Questions
+        <h2 className={`font-primary font-semibold text-xl ${
+          questionsDone ? 'text-gray-500' : 'text-black'
+        }`}>
+          My Questions {questionsDone && <span className="text-sm font-normal">(Submitted)</span>}
         </h2>
-        <button 
-          onClick={handleAddQuestion}
-          className="flex items-center gap-2 bg-[#502CBD] text-white px-4 py-2 rounded-lg hover:bg-[#4A26B3] transition-colors"
-        >
-          Add Question
-          <Plus className="w-4 h-4 stroke-3" />
-        </button>
+        {!questionsDone && (
+          <button 
+            onClick={handleAddQuestion}
+            className="flex items-center gap-2 bg-[#502CBD] text-white px-4 py-2 rounded-lg hover:bg-[#4A26B3] transition-colors"
+          >
+            Add Question
+            <Plus className="w-4 h-4 stroke-3" />
+          </button>
+        )}
       </div>
 
       {/* Content Area */}
@@ -292,8 +306,12 @@ export default function Questions() {
         <div className="flex-1 overflow-hidden">
           <div className="h-full overflow-y-auto p-6 space-y-3 custom-scrollbar" ref={questionsContainerRef}>
             {questions.map((question, index) => (
-              <div key={index} className={`border rounded-2xl p-4 bg-black/5 ${editingIndex === index ? 'border-[#502CBD]' : 'border-black/20'}`}>
-                {editingIndex === index ? (
+              <div key={index} className={`border rounded-2xl p-4 ${
+                questionsDone 
+                  ? 'bg-gray-100 border-gray-300 opacity-75' 
+                  : `bg-black/5 ${editingIndex === index ? 'border-[#502CBD]' : 'border-black/20'}`
+              }`}>
+                {editingIndex === index && !questionsDone ? (
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <h3 className="font-medium text-gray-900">Question {index + 1}</h3>
@@ -352,18 +370,21 @@ export default function Questions() {
                   </div>
                 ) : (
                   <div 
-                    className="cursor-pointer"
-                    onClick={() => handleEditQuestion(index)}
+                    className={questionsDone ? "cursor-default" : "cursor-pointer"}
+                    onClick={questionsDone ? undefined : () => handleEditQuestion(index)}
                   >
                     <div className="flex items-center justify-between mb-2">
-                      <h3 className="font-medium text-gray-900">Question {index + 1}</h3>
-                      <div className="relative">
-                        <button
-                          onClick={(e) => handleDropdownToggle(index, e)}
-                          className="p-1 hover:bg-gray-200 rounded transition-colors"
-                        >
-                          <MoreVertical className="w-4 h-4 text-gray-400" />
-                        </button>
+                      <h3 className={`font-medium ${questionsDone ? 'text-gray-600' : 'text-gray-900'}`}>
+                        Question {index + 1}
+                      </h3>
+                      {!questionsDone && (
+                        <div className="relative">
+                          <button
+                            onClick={(e) => handleDropdownToggle(index, e)}
+                            className="p-1 hover:bg-gray-200 rounded transition-colors"
+                          >
+                            <MoreVertical className="w-4 h-4 text-gray-400" />
+                          </button>
                         {openDropdown === index && (
                           <div className="absolute right-0 top-full mt-1 bg-gray-900 border border-gray-700 rounded-lg shadow-lg z-10 min-w-[120px]">
                             <button
@@ -378,9 +399,12 @@ export default function Questions() {
                             </button>
                           </div>
                         )}
-                      </div>
+                        </div>
+                      )}
                     </div>
-                    <p className="text-gray-700 break-words whitespace-pre-wrap">
+                    <p className={`break-words whitespace-pre-wrap ${
+                      questionsDone ? 'text-gray-600' : 'text-gray-700'
+                    }`}>
                       {question || (
                         <span className="text-gray-400">Type your question here...</span>
                       )}
@@ -393,12 +417,13 @@ export default function Questions() {
         </div>
       )}
 
-      {/* Voice Button - positioned in bottom right corner */}
+      {/* Voice Button - show continue button when done, voice button when not done */}
       <div className="absolute bottom-4 right-4">
         <VoiceButton 
           agentType="questions"
           collapsed={isVoiceButtonCollapsed}
           projectSlug={projectSlug}
+          forceShowContinue={questionsDone}
           customStyles={{
             position: 'fixed',
             bottom: '20px',
