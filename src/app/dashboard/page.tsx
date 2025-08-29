@@ -4,9 +4,59 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { AudioLines } from "lucide-react";
 import Sidebar from "./components/Sidebar";
 import { VoiceProvider } from "@/components/voice/VoiceProvider";
+import VoiceButton from "@/components/voice/VoiceButton";
+import { useVoice } from "@/components/voice/VoiceProvider";
+
+function DashboardContent() {
+  const { isCallActive } = useVoice();
+  
+  // Debug environment variables (remove this in production)
+  useEffect(() => {
+    console.log('🔧 Environment check:');
+    console.log('- VAPI_API_KEY:', process.env.NEXT_PUBLIC_VAPI_API_KEY ? 'Set' : 'Missing');
+    console.log('- VAPI_QUESTIONS_ASSISTANT_ID:', process.env.NEXT_PUBLIC_VAPI_QUESTIONS_ASSISTANT_ID ? 'Set' : 'Missing');
+    console.log('- VAPI_DASHBOARD_ASSISTANT_ID:', process.env.NEXT_PUBLIC_VAPI_DASHBOARD_ASSISTANT_ID ? 'Set' : 'Missing');
+  }, []);
+
+  return (
+    <div className="flex-1 flex items-center justify-center">
+      {/* Centered content div */}
+      <div className="flex flex-col items-center text-center">
+        {/* Central circular logo */}
+        <div className="mb-8">
+          <Image
+            src="/logo.gif"
+            alt="Diora Central Logo"
+            width={200}
+            height={200}
+            className={`w-48 h-48 ${isCallActive ? 'animate-pulse' : ''}`}
+            priority
+            unoptimized
+          />
+        </div>
+        
+        {/* Main heading - changes when call is active */}
+        <h1 className="font-primary font-semibold text-4xl mb-4 text-black">
+          {isCallActive ? "I'm listening..." : "Let's find some experts"}
+        </h1>
+        
+        {/* Tagline - changes when call is active */}
+        <p className="font-primary font-light text-md mb-8 text-black">
+          {isCallActive ? "Tell me about your project" : "Diora will find the best matches for your project"}
+        </p>
+        
+        {/* Voice Button - replaces the original Start Now button */}
+        <VoiceButton 
+          variant="dashboard"
+          agentType="dashboard"
+          width={40}
+        />
+      </div>
+    </div>
+  );
+}
 
 export default function Dashboard() {
   const [loading, setLoading] = useState(true);
@@ -67,39 +117,7 @@ export default function Dashboard() {
         <Sidebar />
         
         {/* Main content area */}
-        <div className="flex-1 flex items-center justify-center">
-          {/* Centered content div */}
-          <div className="flex flex-col items-center text-center">
-            {/* Central circular logo */}
-            <div className="mb-8">
-              <Image
-                src="/logo.gif"
-                alt="Diora Central Logo"
-                width={200}
-                height={200}
-                className="w-48 h-48"
-                priority
-                unoptimized
-              />
-            </div>
-            
-            {/* Main heading */}
-            <h1 className="font-primary font-semibold text-4xl mb-4 text-black">
-              Let&apos;s find some experts
-            </h1>
-            
-            {/* Tagline */}
-            <p className="font-primary font-light text-md mb-8 text-black">
-              Diora will find the best matches for your project
-            </p>
-            
-            {/* Call to action button */}
-            <button className="w-[160px] h-[40px] bg-[rgb(75,46,182)] text-white rounded-xl font-primary font-light text-[18px] flex items-center justify-center gap-[6px] hover:bg-[rgb(65,36,172)] transition-colors">
-              <AudioLines className="w-3.5 h-3.5" />
-              Start now
-            </button>
-          </div>
-        </div>
+        <DashboardContent />
       </div>
     </VoiceProvider>
   );

@@ -235,14 +235,9 @@ export default function ProjectPage({ params }: { params: Promise<{ slug: string
 
         setProject(projectData);
         
-        // Set initial section based on questions_done status
-        if (projectData.questions_done) {
-          console.log('📊 Questions already done, defaulting to expert-list section');
-          setCurrentSection('expert-list');
-        } else {
-          console.log('❓ Questions not done, staying on questions section');
-          setCurrentSection('questions');
-        }
+        // Always default to questions section (project brief)
+        console.log('📝 Defaulting to questions section (project brief)');
+        setCurrentSection('questions');
       } catch (error) {
         console.error('Project page error:', error);
         // Redirect to dashboard on any error
@@ -369,47 +364,43 @@ export default function ProjectPage({ params }: { params: Promise<{ slug: string
               Questions
             </button>
             
-            {/* Other tabs - visible when questions are done (optimistic or confirmed) */}
-            {(project?.questions_done || optimisticQuestionsDone) && (
-              <>
-                <button 
-                  onClick={() => {
-                    console.log('🔄 Expert List button clicked, switching section');
-                    setCurrentSection('expert-list');
-                  }}
-                  className={`flex items-center gap-2 transition-colors text-sm font-medium rounded-lg px-2.5 py-1.5 ${
-                    currentSection === 'expert-list' 
-                      ? 'bg-[rgba(80,44,189,0.1)] text-black' 
-                      : 'text-gray-500 hover:text-black'
-                  }`}
-                >
-                  <List className="w-3.5 h-3.5" />
-                  Expert List
-                </button>
-                <button 
-                  onClick={() => setCurrentSection('insights')}
-                  className={`flex items-center gap-2 transition-colors text-sm font-medium rounded-lg px-2.5 py-1.5 ${
-                    currentSection === 'insights' 
-                      ? 'bg-[rgba(80,44,189,0.1)] text-black' 
-                      : 'text-gray-500 hover:text-black'
-                  }`}
-                >
-                  <FileText className="w-3.5 h-3.5" />
-                  Insights
-                </button>
-                <button 
-                  onClick={() => setCurrentSection('financial')}
-                  className={`flex items-center gap-2 transition-colors text-sm font-medium rounded-lg px-2.5 py-1.5 ${
-                    currentSection === 'financial' 
-                      ? 'bg-[rgba(80,44,189,0.1)] text-black' 
-                      : 'text-gray-500 hover:text-black'
-                  }`}
-                >
-                  <DollarSign className="w-4 h-4" />
-                  Financial
-                </button>
-              </>
-            )}
+            {/* All tabs - always visible */}
+            <button 
+              onClick={() => {
+                console.log('🔄 Expert List button clicked, switching section');
+                setCurrentSection('expert-list');
+              }}
+              className={`flex items-center gap-2 transition-colors text-sm font-medium rounded-lg px-2.5 py-1.5 ${
+                currentSection === 'expert-list' 
+                  ? 'bg-[rgba(80,44,189,0.1)] text-black' 
+                  : 'text-gray-500 hover:text-black'
+              }`}
+            >
+              <List className="w-3.5 h-3.5" />
+              Expert List
+            </button>
+            <button 
+              onClick={() => setCurrentSection('insights')}
+              className={`flex items-center gap-2 transition-colors text-sm font-medium rounded-lg px-2.5 py-1.5 ${
+                currentSection === 'insights' 
+                  ? 'bg-[rgba(80,44,189,0.1)] text-black' 
+                  : 'text-gray-500 hover:text-black'
+              }`}
+            >
+              <FileText className="w-3.5 h-3.5" />
+              Insights
+            </button>
+            <button 
+              onClick={() => setCurrentSection('financial')}
+              className={`flex items-center gap-2 transition-colors text-sm font-medium rounded-lg px-2.5 py-1.5 ${
+                currentSection === 'financial' 
+                  ? 'bg-[rgba(80,44,189,0.1)] text-black' 
+                  : 'text-gray-500 hover:text-black'
+              }`}
+            >
+              <DollarSign className="w-4 h-4" />
+              Financial
+            </button>
           </div>
           
           {/* Horizontal divider */}

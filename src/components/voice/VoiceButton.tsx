@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useVoice } from "./VoiceProvider";
 import { vapiService } from "@/lib/vapi";
-import { HelpCircle, Phone, Mic, MicOff, ArrowRight } from "lucide-react";
+import { HelpCircle, Phone, Mic, MicOff, ArrowRight, AudioLines } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -15,6 +15,7 @@ interface VoiceButtonProps {
   collapsed?: boolean; // New prop to control collapsed state
   projectSlug?: string; // New prop for navigation to experts
   forceShowContinue?: boolean; // Force continue button regardless of env variable
+  variant?: 'default' | 'dashboard'; // New prop for different UI variants
 }
 
 export default function VoiceButton({ 
@@ -23,7 +24,8 @@ export default function VoiceButton({
   customStyles = {},
   collapsed = false,
   projectSlug,
-  forceShowContinue = false
+  forceShowContinue = false,
+  variant = 'default'
 }: VoiceButtonProps) {
   const { isCallActive, startCall, endCall, userFirstName, projectId } = useVoice();
   const [isMuted, setIsMuted] = useState(false);
@@ -34,6 +36,139 @@ export default function VoiceButton({
   
   // Check if continue button is enabled via environment variable OR forced by prop
   const isContinueMode = process.env.NEXT_PUBLIC_VOICE_CONTINUE_BUTTON === 'true' || forceShowContinue;
+
+  // Handle clicking outside to close options (must be before conditional returns)
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (optionsRef.current && !optionsRef.current.contains(target) && 
+          gifRef.current && !gifRef.current.contains(target)) {
+        setShowOptions(false);
+      }
+    };
+
+    if (isCallActive && showOptions) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [isCallActive, showOptions]);
+
+  // Dashboard variant - simple voice interaction without tool calls or navigation
+  if (variant === 'dashboard') {
+    const handleDashboardVoiceClick = async () => {
+      if (!isCallActive) {
+        try {
+          console.log('🎯 Dashboard voice button clicked');
+          // Start call without tool calls - just basic voice interaction
+          await vapiService.startCall(agentType, {
+            first_name: userFirstName || 'there',
+            project_id: 'dashboard'
+          });
+          startCall(agentType);
+          console.log('✅ Voice call started successfully');
+        } catch (error) {
+          console.error('❌ Error in handleDashboardVoiceClick:', error);
+        }
+      }
+    };
+
+    const handleDashboardEndCall = async () => {
+      await vapiService.endCall();
+      endCall();
+      
+      // Show alert about new project creation
+      alert('New project based on your call will be added in 5-10 mins, please keep a check on your project history in the sidebar!');
+      
+      // Wait 10 seconds then fetch the call data
+      setTimeout(async () => {
+        try {
+          console.log('🔍 Fetching latest Vapi call data...');
+          const response = await fetch('/api/vapi-calls', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              first_name: userFirstName || 'there',
+              assistant_type: 'dashboard'
+            })
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            console.log('📞 Latest call data:', data);
+            
+            // If a project was created, emit event for sidebar to update
+            if (data.projectCreated) {
+              const projectEvent = new CustomEvent('projectAutoCreated', {
+                detail: {
+                  id: data.projectCreated.id,
+                  name: data.projectCreated.name,
+                  slug: data.projectCreated.slug
+                }
+              });
+              window.dispatchEvent(projectEvent);
+              console.log('📡 Project creation event dispatched to sidebar');
+              
+            }
+          } else {
+            console.error('❌ Failed to fetch call data:', response.statusText);
+          }
+        } catch (error) {
+          console.error('❌ Error fetching call data:', error);
+        }
+      }, 10000); // 10 seconds
+    };
+
+    const handleDashboardMuteToggle = () => {
+      setIsMuted(!isMuted);
+      // TODO: Implement actual mute functionality with Vapi
+    };
+
+    return (
+      <div className="flex flex-col items-center" style={customStyles}>
+        {/* Dashboard variant UI */}
+        {!isCallActive ? (
+          /* Start Now button */
+          <button
+            onClick={handleDashboardVoiceClick}
+            className="w-[160px] h-[40px] bg-[rgb(75,46,182)] text-white rounded-xl font-primary font-light text-[18px] flex items-center justify-center gap-[6px] hover:bg-[rgb(65,36,172)] transition-colors"
+          >
+            <AudioLines className="w-3.5 h-3.5" />
+            Start now
+          </button>
+        ) : (
+          /* Horizontal button layout when call is active */
+          <div className="flex items-center gap-4">
+            {/* Mute button */}
+            <button 
+              onClick={handleDashboardMuteToggle}
+              className="w-12 h-12 bg-white rounded-full shadow-xl flex items-center justify-center hover:bg-gray-50 transition-colors border border-[#502CBD]"
+            >
+              {isMuted ? (
+                <MicOff className="w-5 h-5 text-[#502CBD]" />
+              ) : (
+                <Mic className="w-5 h-5 text-[#502CBD]" />
+              )}
+            </button>
+            
+            {/* End Call button */}
+            <button 
+              onClick={handleDashboardEndCall}
+              className="w-12 h-12 bg-[#FF0000] rounded-full shadow-xl flex items-center justify-center hover:bg-red-600 transition-colors"
+            >
+              <Phone className="w-5 h-5 text-white" />
+            </button>
+            
+            {/* Help button */}
+            <button className="w-12 h-12 bg-white rounded-full shadow-xl flex items-center justify-center border border-[#502CBD] hover:bg-gray-50 transition-colors">
+              <HelpCircle className="w-5 h-5 text-[#502CBD]" />
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   const handleVoiceClick = async () => {
     // If in continue mode, end call first then navigate to experts section
@@ -107,21 +242,6 @@ export default function VoiceButton({
     // TODO: Implement actual mute functionality with Vapi
   };
 
-  // Handle clicking outside to close options
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as Node;
-      if (optionsRef.current && !optionsRef.current.contains(target) && 
-          gifRef.current && !gifRef.current.contains(target)) {
-        setShowOptions(false);
-      }
-    };
-
-    if (isCallActive && showOptions) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
-  }, [isCallActive, showOptions]);
 
   // When collapsed, just show the gif by itself
   if (collapsed) {

@@ -31,7 +31,7 @@ export const AGENT_CONFIGS: Record<string, VapiConfig> = {
     assistantId: 'insights-agent-id',
   },
   dashboard: {
-    assistantId: 'dashboard-agent-id',
+    assistantId: process.env.NEXT_PUBLIC_VAPI_DASHBOARD_ASSISTANT_ID || process.env.NEXT_PUBLIC_VAPI_QUESTIONS_ASSISTANT_ID || 'dashboard-agent-id',
   }
 };
 
@@ -48,14 +48,18 @@ class VapiService {
   private constructor() {
     // Initialize Vapi instance
     const apiKey = process.env.NEXT_PUBLIC_VAPI_API_KEY;
+    console.log('🔑 VAPI API Key check:', apiKey ? 'Found' : 'Missing');
+    
     if (!apiKey) {
-      console.warn('VAPI_API_KEY not found in environment variables');
+      console.warn('⚠️ VAPI_API_KEY not found in environment variables');
       return;
     }
 
     try {
+      console.log('🚀 Initializing Vapi with API key...');
       this.vapi = new Vapi(apiKey);
       this.isInitialized = true;
+      console.log('✅ Vapi initialized successfully');
       
       // Set up event listeners
       this.vapi.on('call-start', () => {
@@ -96,7 +100,9 @@ class VapiService {
       });
       
       this.vapi.on('error', (error) => {
-        console.error('Vapi error:', error);
+        console.error('❌ Vapi error details:', error);
+        console.error('❌ Vapi error type:', typeof error);
+        console.error('❌ Vapi error stringified:', JSON.stringify(error, null, 2));
       });
       
     } catch (error) {
@@ -154,7 +160,7 @@ class VapiService {
     }
   }
 
-  private async handleActivateContinueButtonToolCall(_toolCall: ToolCall) {
+  private async handleActivateContinueButtonToolCall(toolCall: ToolCall) {
     try {
       // Get the authenticated user's ID (for consistency with other handlers)
       const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -234,12 +240,16 @@ class VapiService {
   }
 
   async startCall(agentType: string, variableValues?: Record<string, unknown>): Promise<void> {
+    console.log('🎯 Starting call with agent type:', agentType);
+    
     if (!this.isInitialized || !this.vapi) {
-      console.error('Vapi not initialized');
+      console.error('❌ Vapi not initialized - isInitialized:', this.isInitialized, 'vapi instance:', !!this.vapi);
       return;
     }
 
     const config = AGENT_CONFIGS[agentType];
+    console.log('🔧 Agent config for', agentType, ':', config);
+    
     if (!config) {
       throw new Error(`Unknown agent type: ${agentType}`);
     }
@@ -248,17 +258,23 @@ class VapiService {
       // Log user ID and project slug when call starts
       const { data: { user }, error: authError } = await supabase.auth.getUser();
       if (authError || !user) {
-        console.error('Error getting authenticated user on call start:', authError);
+        console.error('⚠️ Error getting authenticated user on call start:', authError);
       } else {
-        console.log(`Vapi Call Started - User: ${user.id}, Project Slug: ${this.currentProjectSlug}`);
+        console.log(`👤 Vapi Call Started - User: ${user.id}, Project Slug: ${this.currentProjectSlug}`);
       }
 
+      console.log('🚀 About to start vapi call with:', {
+        assistantId: config.assistantId,
+        variableValues: variableValues || {}
+      });
+      
       await this.vapi.start(config.assistantId, {
         variableValues: variableValues || {}
       });
-      console.log(`Started Vapi call with agent: ${agentType}`, variableValues);
+      console.log(`✅ Started Vapi call with agent: ${agentType}`, variableValues);
     } catch (error: unknown) {
-      console.error('Error starting Vapi call:', error);
+      console.error('❌ Error starting Vapi call:', error);
+      console.error('❌ Error details:', JSON.stringify(error, null, 2));
     }
   }
 

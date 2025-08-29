@@ -314,6 +314,26 @@ export default function Sidebar({ currentProjectSlug, currentProjectName }: Side
     }
   };
 
+  // Add global cache update function
+  useEffect(() => {
+    const handleProjectCreated = (event: CustomEvent) => {
+      const newProject = event.detail;
+      if (newProject) {
+        // Update cache and state with new project
+        sidebarDataCache.projects = [newProject, ...sidebarDataCache.projects];
+        setProjects([...sidebarDataCache.projects]);
+        console.log('📋 Sidebar cache updated with new project:', newProject.name);
+      }
+    };
+
+    // Listen for project creation events
+    window.addEventListener('projectAutoCreated', handleProjectCreated as EventListener);
+    
+    return () => {
+      window.removeEventListener('projectAutoCreated', handleProjectCreated as EventListener);
+    };
+  }, []);
+
   useEffect(() => {
     async function fetchUserData() {
       // If data is already cached, use it
@@ -428,7 +448,21 @@ export default function Sidebar({ currentProjectSlug, currentProjectName }: Side
         </h2>
         
         <div className="space-y-3">
-          {/* Start a new project */}
+          {/* Start a new project - redirect to dashboard */}
+          <div 
+            className="flex items-center h-[42px] px-3 rounded-lg border border-[rgb(75,46,182)] text-[rgb(75,46,182)] cursor-pointer transition-all duration-200 bg-[rgba(80,44,189,0.1)] hover:bg-[rgba(80,44,189,0.15)]"
+            onClick={() => router.push('/dashboard')}
+          >
+            <div className="w-4 h-4 mr-3 flex items-center justify-center">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+            </div>
+            <span className="text-xs font-medium">Start a new project</span>
+          </div>
+
+          {/* Commented out project creation input functionality */}
+          {/* 
           <div 
             className={`flex flex-col rounded-lg border border-[rgb(75,46,182)] text-[rgb(75,46,182)] cursor-pointer transition-all duration-200 ${
               showCreateInput 
@@ -443,14 +477,12 @@ export default function Sidebar({ currentProjectSlug, currentProjectName }: Side
               }
             }}
           >
-            {/* Button part - always visible */}
             <div 
               className="flex items-center h-[42px] px-3"
               onClick={(e) => {
                 if (showCreateInput) {
                   e.preventDefault();
                   e.stopPropagation();
-                  // Small delay to prevent rapid close/open
                   setTimeout(() => {
                     setShowCreateInput(false);
                     setProjectName("");
@@ -467,7 +499,6 @@ export default function Sidebar({ currentProjectSlug, currentProjectName }: Side
               <span className="text-xs font-medium">Start a new project</span>
             </div>
 
-            {/* Input part - appears when expanded */}
             {showCreateInput && (
               <div className="px-3 pb-3" onClick={(e) => e.stopPropagation()}>
                 <div className="relative">
@@ -505,6 +536,7 @@ export default function Sidebar({ currentProjectSlug, currentProjectName }: Side
               </div>
             )}
           </div>
+          */}
 
           {/* Favorite Experts */}
           <div className="flex items-center h-[42px] px-3 rounded-lg bg-[rgba(80,44,189,0.1)] border border-[rgb(75,46,182)] text-[rgb(75,46,182)] cursor-pointer hover:bg-[rgba(80,44,189,0.15)] transition-colors">

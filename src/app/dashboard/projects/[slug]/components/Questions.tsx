@@ -4,7 +4,7 @@ import { Plus, Pencil, MoreVertical } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { useParams } from "next/navigation";
-import VoiceButton from "@/components/voice/VoiceButton";
+// import VoiceButton from "@/components/voice/VoiceButton";
 import { useVoice } from "@/components/voice/VoiceProvider";
 import { vapiService } from "@/lib/vapi";
 
@@ -434,6 +434,7 @@ export default function Questions({ questionsDone }: QuestionsProps) {
       )}
 
       {/* Voice Button - show continue button when done or when tool call received */}
+      {/* COMMENTED OUT - Now using dashboard variant instead
       <div className="absolute bottom-4 right-4">
         <VoiceButton 
           agentType="questions"
@@ -448,6 +449,7 @@ export default function Questions({ questionsDone }: QuestionsProps) {
           }}
         />
       </div>
+      */}
     </div>
   );
 }

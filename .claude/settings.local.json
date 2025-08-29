@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run dev:*)",
+      "WebSearch",
+      "WebFetch(domain:openrouter.ai)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
