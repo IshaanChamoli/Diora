@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { use } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -27,6 +27,8 @@ export default function ProjectPage({ params }: { params: Promise<{ slug: string
   const [loading, setLoading] = useState(true);
   const [currentSection, setCurrentSection] = useState<'expert-list' | 'questions' | 'insights' | 'financial'>('questions');
   const [optimisticQuestionsDone, setOptimisticQuestionsDone] = useState(false);
+  const [isPollingForUpdates, setIsPollingForUpdates] = useState(false);
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   
   // Debug current section changes
   useEffect(() => {
@@ -90,8 +92,34 @@ export default function ProjectPage({ params }: { params: Promise<{ slug: string
           .single();
 
         if (!error && projectData) {
+          // Check if project name changed and update sidebar
+          if (project && projectData.name !== project.name) {
+            console.log('📝 Project name changed from', project.name, 'to', projectData.name);
+            const projectUpdateEvent = new CustomEvent('projectNameUpdated', {
+              detail: {
+                oldSlug: slug,
+                newProject: {
+                  id: projectData.id,
+                  name: projectData.name,
+                  slug: projectData.slug
+                }
+              }
+            });
+            window.dispatchEvent(projectUpdateEvent);
+          }
+          
           setProject(projectData);
           console.log('✅ Project data updated, questions_done:', projectData.questions_done);
+          
+          // Stop polling if processing is complete
+          if (projectData.name !== null && isPollingForUpdates) {
+            setIsPollingForUpdates(false);
+            if (pollingIntervalRef.current) {
+              clearInterval(pollingIntervalRef.current);
+              pollingIntervalRef.current = null;
+            }
+            console.log('🛑 Processing complete, stopped polling for project updates');
+          }
         }
       } catch (error) {
         console.error('Error updating project data:', error);
@@ -107,8 +135,78 @@ export default function ProjectPage({ params }: { params: Promise<{ slug: string
       window.removeEventListener('forceExpertSection', handleForceExpertSection);
       window.removeEventListener('updateProjectData', handleUpdateProjectData);
       window.removeEventListener('continueButtonClicked', handleContinueButtonClick);
+      
+      // Cleanup polling interval
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
     };
   }, [slug]);
+
+  // Polling effect for project updates
+  useEffect(() => {
+    if (isPollingForUpdates && !pollingIntervalRef.current) {
+      console.log('🔄 Setting up polling interval for project updates...');
+      
+      pollingIntervalRef.current = setInterval(async () => {
+        console.log('📡 Polling for project updates...');
+        
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) return;
+
+          const { data: projectData, error } = await supabase
+            .from('projects')
+            .select('*')
+            .eq('slug', slug)
+            .eq('investor_id', user.id)
+            .single();
+
+          if (!error && projectData) {
+            // Check if project name changed and update sidebar
+            if (project && projectData.name !== project.name) {
+              console.log('📝 Project name changed from', project.name, 'to', projectData.name);
+              const projectUpdateEvent = new CustomEvent('projectNameUpdated', {
+                detail: {
+                  oldSlug: slug,
+                  newProject: {
+                    id: projectData.id,
+                    name: projectData.name,
+                    slug: projectData.slug
+                  }
+                }
+              });
+              window.dispatchEvent(projectUpdateEvent);
+            }
+            
+            setProject(projectData);
+            
+            // Stop polling if processing is complete
+            if (projectData.name !== null) {
+              console.log('🛑 Processing complete, stopping polling');
+              setIsPollingForUpdates(false);
+            }
+          }
+        } catch (error) {
+          console.error('Error during polling update:', error);
+        }
+      }, 10000); // Poll every 10 seconds
+    }
+
+    // Cleanup interval when polling stops
+    if (!isPollingForUpdates && pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
+
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+    };
+  }, [isPollingForUpdates, slug, project]);
 
   // Save description to database
   const saveDescriptionToDb = useCallback(async (newDescription: string) => {
@@ -235,6 +333,12 @@ export default function ProjectPage({ params }: { params: Promise<{ slug: string
 
         setProject(projectData);
         
+        // Start polling if project name is null (being processed)
+        if (projectData.name === null && !isPollingForUpdates) {
+          console.log('🔄 Starting polling for project updates...');
+          setIsPollingForUpdates(true);
+        }
+        
         // Always default to questions section (project brief)
         console.log('📝 Defaulting to questions section (project brief)');
         setCurrentSection('questions');
@@ -299,7 +403,7 @@ export default function ProjectPage({ params }: { params: Promise<{ slug: string
         {/* Universal Sidebar with current project info */}
         <Sidebar 
           currentProjectSlug={project.slug}
-          currentProjectName={project.name}
+          currentProjectName={project.name || 'New Project'}
         />
         
         {/* Main content area */}
@@ -308,7 +412,7 @@ export default function ProjectPage({ params }: { params: Promise<{ slug: string
           <div className="bg-[rgba(80,44,189,0.06)] border border-[rgb(80,44,189)] rounded-2xl pt-6 pr-6 pl-6 pb-2 mb-6 flex flex-col justify-between" style={{ minHeight: 140 }}>
             <div className="flex flex-col gap-1">
               <h1 className="font-primary font-semibold text-2xl text-black mb-1">
-                {project.name}
+                {project.name || 'New Project'}
               </h1>
               {isEditingDescription ? (
                 <div className="mb-4" style={{ minHeight: '4.5rem', maxHeight: '4.5rem', height: '4.5rem' }}>

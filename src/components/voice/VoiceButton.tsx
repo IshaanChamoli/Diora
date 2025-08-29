@@ -77,47 +77,93 @@ export default function VoiceButton({
       endCall();
       
       // Show alert about new project creation
-      alert('New project based on your call will be added in 5-10 mins, please keep a check on your project history in the sidebar!');
-      
-      // Wait 10 seconds then fetch the call data
-      setTimeout(async () => {
-        try {
-          console.log('🔍 Fetching latest Vapi call data...');
-          const response = await fetch('/api/vapi-calls', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              first_name: userFirstName || 'there',
-              assistant_type: 'dashboard'
-            })
-          });
-          
-          if (response.ok) {
-            const data = await response.json();
-            console.log('📞 Latest call data:', data);
-            
-            // If a project was created, emit event for sidebar to update
-            if (data.projectCreated) {
-              const projectEvent = new CustomEvent('projectAutoCreated', {
-                detail: {
-                  id: data.projectCreated.id,
-                  name: data.projectCreated.name,
-                  slug: data.projectCreated.slug
-                }
-              });
-              window.dispatchEvent(projectEvent);
-              console.log('📡 Project creation event dispatched to sidebar');
-              
-            }
-          } else {
-            console.error('❌ Failed to fetch call data:', response.statusText);
-          }
-        } catch (error) {
-          console.error('❌ Error fetching call data:', error);
+      if (!confirm('This will end the call and begin the project creation process. A new project will appear immediately while Diora generates the details. Continue?')) {
+        return; // User cancelled
+      }
+
+      // Create blank project immediately
+      let tempProjectId: string | null = null;
+      try {
+        console.log('🚀 Creating immediate blank project...');
+        
+        // Get current user for project creation
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError || !user) {
+          console.error('Auth error during blank project creation:', authError);
+          alert('Authentication error. Please refresh and try again.');
+          return;
         }
-      }, 10000); // 10 seconds
+
+        // Generate unique slug for temp project
+        const timestamp = Date.now();
+        const tempSlug = `new-project-${timestamp}`;
+
+        // Create blank project
+        const { data: tempProject, error: projectError } = await supabase
+          .from('projects')
+          .insert({
+            name: null, // null indicates project is being processed
+            slug: tempSlug,
+            description: 'Generating description...',
+            questions: [],
+            investor_id: user.id,
+            questions_done: false
+          })
+          .select()
+          .single();
+
+        if (projectError) {
+          console.error('❌ Error creating blank project:', projectError);
+          alert('Failed to create project. Please try again.');
+          return;
+        }
+
+        tempProjectId = tempProject.id;
+        console.log('✅ Blank project created:', { id: tempProject.id, slug: tempProject.slug });
+
+        // Immediately show project in sidebar and navigate
+        const projectEvent = new CustomEvent('projectAutoCreated', {
+          detail: {
+            id: tempProject.id,
+            name: 'New Project', // Display name for UI
+            slug: tempProject.slug
+          }
+        });
+        window.dispatchEvent(projectEvent);
+        
+        // Navigate to the new project
+        router.replace(`/dashboard/projects/${tempProject.slug}`);
+
+      } catch (error) {
+        console.error('❌ Exception creating blank project:', error);
+        alert('An error occurred. Please try again.');
+        return;
+      }
+      
+      // Trigger server-side processing immediately (server will handle 10-second delay)
+      try {
+        console.log('🔍 Triggering server-side processing...');
+        const response = await fetch('/api/vapi-calls', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            first_name: userFirstName || 'there',
+            assistant_type: 'dashboard',
+            temp_project_id: tempProjectId,
+            delay_processing: true // Flag to tell server to wait 10 seconds
+          })
+        });
+        
+        if (response.ok) {
+          console.log('✅ Server-side processing initiated');
+        } else {
+          console.error('❌ Failed to initiate server processing:', response.statusText);
+        }
+      } catch (error) {
+        console.error('❌ Error initiating server processing:', error);
+      }
     };
 
     const handleDashboardMuteToggle = () => {

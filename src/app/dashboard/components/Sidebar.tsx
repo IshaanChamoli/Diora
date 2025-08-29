@@ -187,11 +187,30 @@ export default function Sidebar({ currentProjectSlug, currentProjectName }: Side
       }
     };
 
-    // Listen for project creation events
+    // Handle project name updates
+    const handleProjectNameUpdated = (event: CustomEvent) => {
+      const { oldSlug, newProject } = event.detail;
+      console.log('📝 Project name updated event received:', { oldSlug, newProject });
+      
+      // Update the project in the list
+      const updatedProjects = projects.map(project => 
+        project.slug === oldSlug 
+          ? { id: newProject.id, name: newProject.name, slug: newProject.slug }
+          : project
+      );
+      
+      setProjects(updatedProjects);
+      sidebarDataCache.projects = updatedProjects;
+      console.log('📋 Sidebar updated with new project name:', newProject.name);
+    };
+
+    // Listen for project creation and update events
     window.addEventListener('projectAutoCreated', handleProjectCreated as EventListener);
+    window.addEventListener('projectNameUpdated', handleProjectNameUpdated as EventListener);
     
     return () => {
       window.removeEventListener('projectAutoCreated', handleProjectCreated as EventListener);
+      window.removeEventListener('projectNameUpdated', handleProjectNameUpdated as EventListener);
     };
   }, []);
 

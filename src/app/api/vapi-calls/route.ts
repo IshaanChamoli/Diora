@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { autoCreateProjectFromCall } from '@/lib/projectUtils';
+import { autoCreateProjectFromCall, updateProjectFromCall } from '@/lib/projectUtils';
 import { createClient } from '@supabase/supabase-js';
 
 interface VapiCall {
@@ -34,9 +34,16 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey, {
 
 export async function POST(request: NextRequest) {
   try {
-    const { first_name, assistant_type } = await request.json();
+    const { first_name, assistant_type, temp_project_id, delay_processing } = await request.json();
     
-    console.log('🔍 Fetching Vapi calls for:', { first_name, assistant_type });
+    console.log('🔍 Fetching Vapi calls for:', { first_name, assistant_type, delay_processing });
+    
+    // If delay_processing is true, wait 10 seconds before processing
+    if (delay_processing) {
+      console.log('⏰ Waiting 10 seconds before processing...');
+      await new Promise(resolve => setTimeout(resolve, 10000));
+      console.log('✅ 10-second delay complete, proceeding with processing');
+    }
     
     // Get Vapi PRIVATE API key from environment (not the public key used for client-side)
     const vapiApiKey = process.env.VAPI_PRIVATE_KEY || process.env.VAPI_API_KEY;
@@ -169,20 +176,39 @@ export async function POST(request: NextRequest) {
       if (investorError || !investor) {
         console.error('❌ Could not find user with first_name:', first_name, investorError);
       } else {
-        // Create project using the transcript
-        const projectResult = await autoCreateProjectFromCall(latestCall.transcript, investor.id);
-        
-        if (projectResult.success && projectResult.project) {
-          console.log('✅ Project auto-created successfully:', {
-            name: projectResult.project.name,
-            slug: projectResult.project.slug,
-            id: projectResult.project.id
-          });
+        if (temp_project_id) {
+          // Update existing blank project with OpenRouter analysis
+          console.log('🔄 Updating existing project with transcript analysis...');
+          const projectResult = await updateProjectFromCall(latestCall.transcript, investor.id, temp_project_id);
           
-          projectCreated = projectResult.project;
-          console.log('📡 Broadcasting project creation event...');
+          if (projectResult.success && projectResult.project) {
+            console.log('✅ Project updated successfully:', {
+              name: projectResult.project.name,
+              slug: projectResult.project.slug,
+              id: projectResult.project.id
+            });
+            
+            projectCreated = projectResult.project;
+            console.log('📡 Broadcasting project update event...');
+          } else {
+            console.error('❌ Failed to update project:', projectResult.error);
+          }
         } else {
-          console.error('❌ Failed to auto-create project:', projectResult.error);
+          // Fallback: Create project using the transcript (original flow)
+          const projectResult = await autoCreateProjectFromCall(latestCall.transcript, investor.id);
+          
+          if (projectResult.success && projectResult.project) {
+            console.log('✅ Project auto-created successfully:', {
+              name: projectResult.project.name,
+              slug: projectResult.project.slug,
+              id: projectResult.project.id
+            });
+            
+            projectCreated = projectResult.project;
+            console.log('📡 Broadcasting project creation event...');
+          } else {
+            console.error('❌ Failed to auto-create project:', projectResult.error);
+          }
         }
       }
     }

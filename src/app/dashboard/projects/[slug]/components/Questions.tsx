@@ -25,6 +25,7 @@ export default function Questions({ questionsDone }: QuestionsProps) {
   const [, setShowContinueButton] = useState(false);
   const [hasReceivedContinueCall, setHasReceivedContinueCall] = useState(false);
   const questionsContainerRef = useRef<HTMLDivElement>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   // Save questions to database
   const saveQuestionsToDb = useCallback(async (updatedQuestions: string[]) => {
@@ -141,7 +142,7 @@ export default function Questions({ questionsDone }: QuestionsProps) {
       try {
         const { data, error } = await supabase
           .from('projects')
-          .select('questions')
+          .select('questions, name')
           .eq('slug', projectSlug)
           .single();
 
@@ -154,6 +155,7 @@ export default function Questions({ questionsDone }: QuestionsProps) {
         }
 
         setQuestions(data?.questions || []);
+        setIsProcessing(data?.name === null); // Processing if name is null
       } catch (error) {
         console.error('Error loading questions:', error);
         // Fallback to empty array if any error occurs
@@ -305,15 +307,31 @@ export default function Questions({ questionsDone }: QuestionsProps) {
                 <Pencil className="w-6 h-6 text-[rgb(75,46,182)]" />
               </div>
             </div>
-            <h3 className="font-primary font-medium text-base text-gray-700 mb-1">
-              I&apos;m able to find you the best experts
-            </h3>
-            <p className="font-primary font-medium text-base text-gray-700 mb-3">
-              when I understand your open questions.
-            </p>
-            <p className="font-secondary text-xs text-gray-500">
-              You can update questions with voice or text.
-            </p>
+            {isProcessing ? (
+              <>
+                <h3 className="font-primary font-medium text-base text-gray-700 mb-1">
+                  Diora is generating your questions
+                </h3>
+                <p className="font-primary font-medium text-base text-gray-700 mb-3">
+                  Check back in a few minutes.
+                </p>
+                <p className="font-secondary text-xs text-gray-500">
+                  Your call is being analyzed...
+                </p>
+              </>
+            ) : (
+              <>
+                <h3 className="font-primary font-medium text-base text-gray-700 mb-1">
+                  I&apos;m able to find you the best experts
+                </h3>
+                <p className="font-primary font-medium text-base text-gray-700 mb-3">
+                  when I understand your open questions.
+                </p>
+                <p className="font-secondary text-xs text-gray-500">
+                  You can update questions with voice or text.
+                </p>
+              </>
+            )}
           </div>
         </div>
       ) : (

@@ -54,6 +54,44 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey, {
   }
 });
 
+// Function to update project tracking columns
+async function updateProjectStatus(projectId: string, status?: string, incrementPolling: boolean = false) {
+  try {
+    const updateData: { clado_status?: string; clado_polling_count?: number } = {};
+    
+    if (status) {
+      updateData.clado_status = status;
+    }
+    
+    if (incrementPolling) {
+      // Increment polling count
+      const { data: currentProject } = await supabase
+        .from('projects')
+        .select('clado_polling_count')
+        .eq('id', projectId)
+        .single();
+        
+      const currentCount = currentProject?.clado_polling_count || 0;
+      updateData.clado_polling_count = currentCount + 1;
+    }
+    
+    if (Object.keys(updateData).length > 0) {
+      const { error } = await supabase
+        .from('projects')
+        .update(updateData)
+        .eq('id', projectId);
+
+      if (error) {
+        console.error('❌ Error updating project status:', error);
+      } else {
+        console.log(`✅ Project ${projectId} updated:${status ? ` status=${status}` : ''}${incrementPolling ? ` poll_count=${updateData.clado_polling_count}` : ''}`);
+      }
+    }
+  } catch (error) {
+    console.error('❌ Exception updating project status:', error);
+  }
+}
+
 // Function to save experts to database
 async function saveExpertsToDatabase(results: CladoResults, projectId: string, query: string) {
   if (!results.results || !Array.isArray(results.results)) {
@@ -109,6 +147,9 @@ async function saveExpertsToDatabase(results: CladoResults, projectId: string, q
     } else {
       console.log(`✅ Successfully saved ${data.length} experts to database with ranks 1-${data.length}`);
       console.log(`🔗 Query: "${query}" | Project: ${projectId}`);
+      
+      // Update project status to success after experts are saved
+      await updateProjectStatus(projectId, 'success');
     }
   } catch (error) {
     console.error('❌ Exception saving experts to database:', error);
@@ -140,10 +181,13 @@ export async function POST(request: NextRequest) {
         console.log(`Expert search request received with query: ${vapiQuery} [Call ID: ${callId}] [User: ${userFirstName}] [Project ID: ${projectId}]`);
         search_query = vapiQuery;
       } else {
-        // Handle direct API calls (like curl)
+        // Handle direct API calls (like curl or internal calls)
         search_query = body.search_query;
+        projectId = body.project_id;
+        userFirstName = body.user_first_name;
+        
         if (search_query) {
-          console.log(`Direct search request received with query: ${search_query} [Call ID: ${callId}]`);
+          console.log(`Direct search request received with query: ${search_query} [Call ID: ${callId}] [Project ID: ${projectId}]`);
         }
       }
     } catch (parseError) {
@@ -207,7 +251,11 @@ export async function POST(request: NextRequest) {
     queryTexts.set(callId, search_query);
     jobIds.set(callId, searchId);
     if (userFirstName) userNames.set(callId, userFirstName);
-    if (projectId) projectIds.set(callId, projectId);
+    if (projectId) {
+      projectIds.set(callId, projectId);
+      // Set initial status to "searching" when Clado request is initiated
+      await updateProjectStatus(projectId, 'searching');
+    }
 
     // Start background polling for this specific call
     startPolling(searchId, cladoApiKey, callId);
@@ -260,6 +308,18 @@ function startPolling(searchId: string, apiKey: string, callId: string) {
 
       const statusData = await statusResponse.json();
       console.log(`Status for ${searchId} [Call ID: ${callId}]:`, statusData.status);
+
+      // Increment polling count and update status only after successful Clado API call
+      const currentProjectId = projectIds.get(callId);
+      if (currentProjectId) {
+        // Always increment polling count after successful status check
+        await updateProjectStatus(currentProjectId, undefined, true);
+        
+        // Update status based on Clado response
+        if (statusData.status && (statusData.status === 'searching' || statusData.status === 'filtering')) {
+          await updateProjectStatus(currentProjectId, statusData.status);
+        }
+      }
 
       // Check if search is successful according to docs
       if (statusData.status === 'completed' || statusData.status === 'success') {

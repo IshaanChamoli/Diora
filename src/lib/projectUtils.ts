@@ -1,17 +1,6 @@
 import { supabase } from './supabase';
 import { analyzeTranscript } from './openai';
 
-interface ExpertResult {
-  profile: {
-    name?: string;
-    linkedin_profile_url?: string;
-    linkedin_url?: string;
-    headline?: string;
-    summary?: string;
-    criteria?: { [key: string]: { reasoning?: string } };
-  };
-}
-
 export interface CreateProjectParams {
   name: string;
   description: string;
@@ -51,156 +40,38 @@ export function generateTestProjectName(): string {
   return `test-${randomNumber}`;
 }
 
-// Import the clado search logic and reuse existing functionality
+// Trigger expert search using the existing working api/clado-search endpoint
 async function triggerExpertSearchServerSide(searchQuery: string, projectId: string): Promise<void> {
-  // Create a fake request object to reuse the existing clado-search POST logic
   const callId = `auto-${projectId}-${Date.now()}`;
   
   console.log(`🔍 Auto-triggering expert search for project ${projectId} with query: "${searchQuery}" [Call ID: ${callId}]`);
 
-  const cladoApiKey = process.env.CLADO_API_KEY;
-  if (!cladoApiKey) {
-    throw new Error('Clado API key not configured');
-  }
-
-  console.log(`Initiating Clado search for query: ${searchQuery}`);
-
-  // Initiate the deep research (same as clado-search route)
-  const initiateResponse = await fetch('https://search.clado.ai/api/search/deep_research', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${cladoApiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      query: searchQuery,
-      limit: 30
-    }),
-  });
-
-  if (!initiateResponse.ok) {
-    const errorText = await initiateResponse.text();
-    console.error('Clado initiate search failed:', errorText);
-    throw new Error(`Failed to initiate Clado search: ${errorText}`);
-  }
-
-  const initiateData = await initiateResponse.json();
-  const searchId = initiateData.job_id;
-
-  if (!searchId) {
-    throw new Error('No search ID returned from Clado');
-  }
-
-  console.log(`Clado search initiated with ID: ${searchId} [Call ID: ${callId}]`);
-
-  // Start background polling (same as clado-search route)
-  startBackgroundPolling(searchId, cladoApiKey, callId, searchQuery, projectId);
-}
-
-// Background polling function (mirrors clado-search route logic)
-function startBackgroundPolling(searchId: string, apiKey: string, callId: string, queryText: string, projectId: string) {
-  console.log(`Starting polling for search ID: ${searchId} [Call ID: ${callId}]`);
-  let checkNumber = 0;
-
-  const pollingInterval = setInterval(async () => {
-    try {
-      checkNumber++;
-      console.log(`Polling status check ${checkNumber} (every 30 sec) for search ID: ${searchId} [Call ID: ${callId}]`);
-
-      const statusResponse = await fetch(`https://search.clado.ai/api/search/deep_research/${searchId}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!statusResponse.ok) {
-        console.error(`Status check failed for ${searchId} [Call ID: ${callId}]:`, await statusResponse.text());
-        return;
-      }
-
-      const statusData = await statusResponse.json();
-      console.log(`Status for ${searchId} [Call ID: ${callId}]:`, statusData.status);
-
-      // Check if search is successful
-      if (statusData.status === 'completed' || statusData.status === 'success') {
-        console.log(`Search ${searchId} completed successfully! [Call ID: ${callId}]`);
-        
-        // Save experts to database
-        await saveExpertsToDatabase(statusData, projectId, queryText);
-        
-        // Stop polling
-        clearInterval(pollingInterval);
-        console.log(`Polling stopped for Call ID: ${callId}. Results stored.`);
-        
-      } else if (statusData.status === 'failed' || statusData.status === 'error') {
-        console.error(`Search ${searchId} failed [Call ID: ${callId}]:`, statusData);
-        clearInterval(pollingInterval);
-      }
-
-    } catch (error) {
-      console.error(`Error polling status for ${searchId} [Call ID: ${callId}]:`, error);
-    }
-  }, 30000); // Poll every 30 seconds
-}
-
-// Save experts to database (same as clado-search route)
-async function saveExpertsToDatabase(results: { results?: ExpertResult[] }, projectId: string, query: string) {
-  if (!results.results || !Array.isArray(results.results)) {
-    console.log('No experts found in results to save');
-    return;
-  }
-
-  console.log(`💾 Saving ${results.results.length} experts to database for project ${projectId}`);
-  console.log(`📊 Experts will be ranked 1-${results.results.length} based on Clado's result order`);
-
-  const expertsToInsert = results.results.map((result: ExpertResult, index: number) => {
-    const profile = result.profile;
-    
-    // Extract reasoning from all criteria
-    let reasoning = '';
-    if (profile.criteria) {
-      const reasoningParts = [];
-      for (const criteriaKey in profile.criteria) {
-        const criteria = profile.criteria[criteriaKey];
-        if (criteria.reasoning) {
-          reasoningParts.push(criteria.reasoning);
-        }
-      }
-      reasoning = reasoningParts.join('\n\n');
-    }
-
-    // Preserve exact JSON format
-    const preservedJson = JSON.parse(JSON.stringify(result));
-
-    return {
-      name: profile.name || '',
-      project_id: projectId,
-      linkedin_url: profile.linkedin_profile_url || profile.linkedin_url || '',
-      headline: profile.headline || '',
-      summary: profile.summary || '',
-      reasoning: reasoning,
-      for_query: query,
-      rank: index + 1,
-      raw_json: preservedJson
-    };
-  });
-
   try {
-    const { data, error } = await supabase
-      .from('experts')
-      .insert(expertsToInsert)
-      .select();
+    // Use our existing working api/clado-search endpoint
+    const response = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/clado-search`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-call-id': callId
+      },
+      body: JSON.stringify({
+        search_query: searchQuery,
+        project_id: projectId
+      })
+    });
 
-    if (error) {
-      console.error('❌ Error saving experts to database:', error);
-    } else {
-      console.log(`✅ Successfully saved ${data.length} experts to database with ranks 1-${data.length}`);
-      console.log(`🔗 Query: "${query}" | Project: ${projectId}`);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ Failed to trigger expert search:', errorText);
+      throw new Error(`Failed to trigger expert search: ${errorText}`);
     }
+
+    const result = await response.json();
+    console.log(`✅ Expert search initiated successfully:`, result);
+    
   } catch (error) {
-    console.error('❌ Exception saving experts to database:', error);
+    console.error('❌ Exception triggering expert search via api/clado-search:', error);
+    throw error;
   }
 }
 
@@ -300,12 +171,31 @@ export async function autoCreateProjectFromCall(
       questions_done: false
     });
 
-    // If project creation successful, trigger expert search server-side
+    // If project creation successful, save expert query and trigger expert search server-side
     if (projectResult.success && projectResult.project && analysis.expert_search_query) {
-      console.log('🔍 Triggering expert search for new project...');
+      console.log('💾 Saving expert query to project...');
       
       try {
+        // First, save the expert query to the project
+        const { error: updateError } = await supabase
+          .from('projects')
+          .update({ 
+            expert_query: analysis.expert_search_query,
+            clado_status: 'searching',
+            clado_polling_count: 0
+          })
+          .eq('id', projectResult.project.id);
+
+        if (updateError) {
+          console.error('❌ Error saving expert query to project:', updateError);
+        } else {
+          console.log('✅ Expert query saved to project');
+        }
+
+        // Then trigger the expert search
+        console.log('🔍 Triggering expert search for new project...');
         await triggerExpertSearchServerSide(analysis.expert_search_query, projectResult.project.id);
+        
       } catch (error) {
         console.error('❌ Exception triggering expert search:', error);
       }
@@ -332,3 +222,70 @@ export async function autoCreateProjectFromCall(
     });
   }
 }
+
+// Update existing project with OpenRouter analysis
+export async function updateProjectFromCall(transcript: string, userId: string, projectId: string): Promise<ProjectCreationResult> {
+  try {
+    console.log('🤖 Analyzing transcript with OpenRouter...');
+    
+    const analysis = await analyzeTranscript(transcript);
+    
+    console.log('✅ AI analysis complete:', {
+      title: analysis.project_title,
+      description: analysis.project_description.substring(0, 100) + '...',
+      questionsCount: analysis.questions.length,
+      expertSearchQuery: analysis.expert_search_query
+    });
+    
+    // Update the existing project with analyzed data (keep original slug)
+    const { data: updatedProject, error: updateError } = await supabase
+      .from('projects')
+      .update({
+        name: analysis.project_title,
+        description: analysis.project_description,
+        questions: analysis.questions,
+        expert_query: analysis.expert_search_query,
+        clado_status: 'searching',
+        clado_polling_count: 0
+      })
+      .eq('id', projectId)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error('❌ Error updating project:', updateError);
+      return {
+        success: false,
+        error: `Failed to update project: ${updateError.message}`,
+        project: undefined
+      };
+    }
+
+    console.log('✅ Project updated successfully');
+
+    // Trigger expert search server-side
+    console.log('🔍 Triggering expert search for updated project...');
+    
+    try {
+      await triggerExpertSearchServerSide(analysis.expert_search_query, projectId);
+    } catch (error) {
+      console.error('❌ Exception triggering expert search:', error);
+    }
+
+    return {
+      success: true,
+      project: updatedProject,
+      error: undefined,
+      expertSearchQuery: analysis.expert_search_query
+    };
+
+  } catch (error) {
+    console.error('❌ Error in updateProjectFromCall:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error occurred',
+      project: undefined
+    };
+  }
+}
+
