@@ -179,7 +179,8 @@ export async function POST(request: NextRequest) {
         if (temp_project_id) {
           // Update existing blank project with OpenRouter analysis
           console.log('🔄 Updating existing project with transcript analysis...');
-          const projectResult = await updateProjectFromCall(latestCall.transcript, investor.id, temp_project_id);
+          const baseUrl = `https://${request.headers.get('host')}`;
+          const projectResult = await updateProjectFromCall(latestCall.transcript, investor.id, temp_project_id, baseUrl);
           
           if (projectResult.success && projectResult.project) {
             console.log('✅ Project updated successfully:', {

@@ -4,7 +4,8 @@
       "Bash(npm run dev:*)",
       "WebSearch",
       "WebFetch(domain:openrouter.ai)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "WebFetch(domain:vercel.com)"
     ],
     "deny": [],
     "ask": []

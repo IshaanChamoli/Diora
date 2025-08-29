@@ -41,14 +41,16 @@ export function generateTestProjectName(): string {
 }
 
 // Trigger expert search using the existing working api/clado-search endpoint
-async function triggerExpertSearchServerSide(searchQuery: string, projectId: string): Promise<void> {
+async function triggerExpertSearchServerSide(searchQuery: string, projectId: string, baseUrl?: string): Promise<void> {
   const callId = `auto-${projectId}-${Date.now()}`;
   
   console.log(`🔍 Auto-triggering expert search for project ${projectId} with query: "${searchQuery}" [Call ID: ${callId}]`);
 
   try {
-    // Use our existing working api/clado-search endpoint (relative URL for same domain)
-    const response = await fetch('/api/clado-search', {
+    // Use provided baseUrl from request headers
+    const apiUrl = baseUrl || 'http://localhost:3000/api/clado-search';
+    
+    const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -235,7 +237,7 @@ export async function autoCreateProjectFromCall(
 }
 
 // Update existing project with OpenRouter analysis
-export async function updateProjectFromCall(transcript: string, userId: string, projectId: string): Promise<ProjectCreationResult> {
+export async function updateProjectFromCall(transcript: string, userId: string, projectId: string, baseUrl?: string): Promise<ProjectCreationResult> {
   try {
     console.log('🤖 Analyzing transcript with OpenRouter...');
     
@@ -278,7 +280,7 @@ export async function updateProjectFromCall(transcript: string, userId: string, 
     console.log('🔍 Triggering expert search for updated project...');
     
     try {
-      await triggerExpertSearchServerSide(analysis.expert_search_query, projectId);
+      await triggerExpertSearchServerSide(analysis.expert_search_query, projectId, baseUrl);
     } catch (error) {
       console.error('❌ Exception triggering expert search:', error);
     }
