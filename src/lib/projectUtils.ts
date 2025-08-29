@@ -47,8 +47,8 @@ async function triggerExpertSearchServerSide(searchQuery: string, projectId: str
   console.log(`🔍 Auto-triggering expert search for project ${projectId} with query: "${searchQuery}" [Call ID: ${callId}]`);
 
   try {
-    // Use our existing working api/clado-search endpoint
-    const response = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/clado-search`, {
+    // Use our existing working api/clado-search endpoint (relative URL for same domain)
+    const response = await fetch('/api/clado-search', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -71,6 +71,17 @@ async function triggerExpertSearchServerSide(searchQuery: string, projectId: str
     
   } catch (error) {
     console.error('❌ Exception triggering expert search via api/clado-search:', error);
+    
+    // Update project status to failed
+    try {
+      await supabase
+        .from('projects')
+        .update({ clado_status: 'failed' })
+        .eq('id', projectId);
+    } catch (updateError) {
+      console.error('❌ Failed to update clado_status to failed:', updateError);
+    }
+    
     throw error;
   }
 }

@@ -212,7 +212,7 @@ export default function Sidebar({ currentProjectSlug, currentProjectName }: Side
       window.removeEventListener('projectAutoCreated', handleProjectCreated as EventListener);
       window.removeEventListener('projectNameUpdated', handleProjectNameUpdated as EventListener);
     };
-  }, []);
+  }, [projects]);
 
   useEffect(() => {
     async function fetchUserData() {

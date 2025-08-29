@@ -168,6 +168,18 @@ export default function Questions({ questionsDone }: QuestionsProps) {
     if (projectSlug) {
       loadQuestions();
     }
+    
+    // Listen for questions update events from polling
+    const handleQuestionsUpdated = () => {
+      console.log('📝 Questions updated event received, reloading...');
+      loadQuestions();
+    };
+    
+    window.addEventListener('questionsUpdated', handleQuestionsUpdated);
+    
+    return () => {
+      window.removeEventListener('questionsUpdated', handleQuestionsUpdated);
+    };
   }, [projectSlug]);
 
   // Close dropdown when clicking outside

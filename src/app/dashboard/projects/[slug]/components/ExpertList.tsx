@@ -55,6 +55,7 @@ export default function ExpertList() {
   const [isPolling, setIsPolling] = useState(false);
   const [pollCount, setPollCount] = useState(0);
   const [hasExceededLimit, setHasExceededLimit] = useState(false);
+  const [cladoStatus, setCladoStatus] = useState<string | null>(null);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const [visibleExpertCount, setVisibleExpertCount] = useState(5);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -70,13 +71,14 @@ export default function ExpertList() {
 
         const { data: project, error } = await supabase
           .from('projects')
-          .select('id')
+          .select('id, clado_status')
           .eq('slug', projectSlug)
           .eq('investor_id', user.id)
           .single();
 
         if (!error && project) {
           setProjectId(project.id);
+          setCladoStatus(project.clado_status);
         }
       } catch (error) {
         console.error('Error fetching project ID:', error);
@@ -258,11 +260,11 @@ export default function ExpertList() {
               <div className="text-center">
                 <div className="flex justify-center mb-4">
                   <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                    hasExceededLimit 
+                    (hasExceededLimit || cladoStatus === 'failed') 
                       ? 'bg-red-100' 
                       : 'bg-[rgba(75,46,182,0.1)]'
                   }`}>
-                    {hasExceededLimit ? (
+                    {(hasExceededLimit || cladoStatus === 'failed') ? (
                       <svg className="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.464 0L4.732 15.5c-.77.833.192 2.5 1.732 2.5z" />
                       </svg>
@@ -273,7 +275,7 @@ export default function ExpertList() {
                     )}
                   </div>
                 </div>
-                {hasExceededLimit ? (
+                {(hasExceededLimit || cladoStatus === 'failed') ? (
                   <>
                     <div className="text-gray-700 font-medium text-sm mb-1">Currently experiencing issues.</div>
                     <div className="text-gray-700 font-medium text-sm">Please contact support.</div>

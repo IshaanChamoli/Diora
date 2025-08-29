@@ -20,6 +20,7 @@ interface Project {
   description: string;
   created_at: string;
   questions_done: boolean;
+  questions: string[];
 }
 
 export default function ProjectPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -111,6 +112,12 @@ export default function ProjectPage({ params }: { params: Promise<{ slug: string
           setProject(projectData);
           console.log('✅ Project data updated, questions_done:', projectData.questions_done);
           
+          // Trigger Questions component to reload if questions changed
+          if (project && JSON.stringify(project.questions) !== JSON.stringify(projectData.questions)) {
+            console.log('📝 Questions updated, dispatching reload event');
+            window.dispatchEvent(new CustomEvent('questionsUpdated'));
+          }
+          
           // Stop polling if processing is complete
           if (projectData.name !== null && isPollingForUpdates) {
             setIsPollingForUpdates(false);
@@ -142,7 +149,7 @@ export default function ProjectPage({ params }: { params: Promise<{ slug: string
         pollingIntervalRef.current = null;
       }
     };
-  }, [slug]);
+  }, [slug, isPollingForUpdates, project]);
 
   // Polling effect for project updates
   useEffect(() => {
@@ -352,7 +359,7 @@ export default function ProjectPage({ params }: { params: Promise<{ slug: string
     }
 
     fetchProject();
-  }, [slug, router]);
+  }, [slug, router, isPollingForUpdates]);
 
   if (loading) {
     return (
