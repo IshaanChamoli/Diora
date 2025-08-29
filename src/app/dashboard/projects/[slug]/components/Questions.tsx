@@ -15,14 +15,14 @@ interface QuestionsProps {
 export default function Questions({ questionsDone }: QuestionsProps) {
   const params = useParams();
   const projectSlug = params.slug as string;
-  const { isCallActive } = useVoice();
+  const { } = useVoice();
   
   const [questions, setQuestions] = useState<string[]>([]);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingText, setEditingText] = useState("");
   const [loading, setLoading] = useState(true);
   const [openDropdown, setOpenDropdown] = useState<number | null>(null);
-  const [showContinueButton, setShowContinueButton] = useState(false);
+  const [, setShowContinueButton] = useState(false);
   const [hasReceivedContinueCall, setHasReceivedContinueCall] = useState(false);
   const questionsContainerRef = useRef<HTMLDivElement>(null);
 
@@ -53,7 +53,6 @@ export default function Questions({ questionsDone }: QuestionsProps) {
 
   // Control voice button collapsed state
   // You can customize this logic however you want!
-  const isVoiceButtonCollapsed = isCallActive; // Collapse when call is active
 
   // Function to smoothly scroll to bottom
   const scrollToBottom = () => {

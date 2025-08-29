@@ -200,7 +200,7 @@ export async function POST(request: NextRequest) {
         questions: projectCreated.questions,
         questions_done: projectCreated.questions_done
       } : null,
-      expertSearchQuery: projectCreated ? (projectCreated as any).expertSearchQuery : null
+      expertSearchQuery: projectCreated ? (projectCreated as { expertSearchQuery?: string }).expertSearchQuery : null
     });
     
   } catch (error) {

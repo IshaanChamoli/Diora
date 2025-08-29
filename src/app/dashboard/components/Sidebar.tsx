@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { ArrowRight, MoreVertical, Trash } from "lucide-react";
+import { MoreVertical, Trash } from "lucide-react";
 import { createPortal } from "react-dom";
 
 interface SidebarProps {
@@ -79,121 +79,13 @@ export default function Sidebar({ currentProjectSlug, currentProjectName }: Side
   const [firstName, setFirstName] = useState<string>(sidebarDataCache.firstName);
   const [lastName, setLastName] = useState<string>(sidebarDataCache.lastName);
   const [loading, setLoading] = useState(!sidebarDataCache.isLoaded);
-  const [showCreateInput, setShowCreateInput] = useState(false);
-  const [projectName, setProjectName] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
   const [projects, setProjects] = useState<Array<{ id: string; name: string; slug: string }>>(sidebarDataCache.projects);
   const [showAllProjects, setShowAllProjects] = useState(false);
   const [hoveredProject, setHoveredProject] = useState<string | null>(null);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const router = useRouter();
-  const inputRef = useRef<HTMLInputElement>(null);
 
-  const MAX_PROJECT_NAME_LENGTH = 20;
 
-  // Generate clean slug from project name
-  const generateSlug = (name: string) => {
-    return name
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
-      .replace(/\s+/g, '-') // Replace spaces with hyphens
-      .replace(/-+/g, '-') // Replace multiple hyphens with single
-      .replace(/^-|-$/g, ''); // Remove leading/trailing hyphens
-  };
-
-  const handleCreateProject = async () => {
-    if (!projectName.trim()) {
-      setError("Project name is required");
-      return;
-    }
-
-    if (projectName.trim().length > MAX_PROJECT_NAME_LENGTH) {
-      setError(`Project name must be ${MAX_PROJECT_NAME_LENGTH} characters or less`);
-      return;
-    }
-
-    setIsLoading(true);
-    setError("");
-
-    try {
-      // Get current user
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      
-      if (authError || !user) {
-        setError("Authentication error");
-        return;
-      }
-
-      const slug = generateSlug(projectName.trim());
-
-      // Check if project with same slug already exists for this user
-      const { data: existingProject } = await supabase
-        .from('projects')
-        .select('name')
-        .eq('slug', slug)
-        .eq('investor_id', user.id)
-        .single();
-
-      if (existingProject) {
-        setError(`A project named "${existingProject.name}" already exists. Please choose a different name.`);
-        setIsLoading(false);
-        return;
-      }
-
-      // Create project in database
-      const { data: project, error: projectError } = await supabase
-        .from('projects')
-        .insert({
-          name: projectName.trim(),
-          slug: slug,
-          investor_id: user.id,
-          questions_done: false
-        })
-        .select()
-        .single();
-
-      if (projectError) {
-        console.error('Project creation error:', projectError);
-        setError('Failed to create project. Please try again.');
-        return;
-      }
-
-      // Success! Reset form and redirect
-      setProjectName("");
-      setShowCreateInput(false);
-      setError("");
-      
-      // Update cache with new project
-      const newProject = {
-        id: project.id,
-        name: project.name,
-        slug: project.slug
-      };
-      
-      sidebarDataCache.projects = [newProject, ...sidebarDataCache.projects];
-      setProjects(sidebarDataCache.projects);
-      
-      router.push(`/dashboard/projects/${project.slug}`);
-      
-    } catch (err) {
-      console.error('Create project error:', err);
-      setError('An unexpected error occurred');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleCreateProject();
-    } else if (e.key === 'Escape') {
-      setShowCreateInput(false);
-      setProjectName("");
-      setError("");
-    }
-  };
 
   const handleDropdownToggle = (projectId: string, e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent navigation
@@ -254,37 +146,6 @@ export default function Sidebar({ currentProjectSlug, currentProjectName }: Side
     }
   };
 
-  // Focus input when it appears
-  useEffect(() => {
-    if (showCreateInput && inputRef.current) {
-      inputRef.current.focus();
-    }
-  }, [showCreateInput]);
-
-  // Close input when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (showCreateInput && inputRef.current) {
-        const target = event.target as Node;
-        const inputContainer = inputRef.current.closest('.flex.flex-col.rounded-lg');
-        
-        // Only close if click is outside the entire dropdown container
-        if (inputContainer && !inputContainer.contains(target)) {
-          setShowCreateInput(false);
-          setProjectName("");
-          setError("");
-        }
-      }
-    };
-
-    if (showCreateInput) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [showCreateInput]);
 
   // Close dropdown when clicking outside
   useEffect(() => {

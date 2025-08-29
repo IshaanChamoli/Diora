@@ -50,7 +50,7 @@ export default function ExpertList() {
   const params = useParams();
   const projectSlug = params.slug as string;
   const [experts, setExperts] = useState<Expert[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
   const [projectId, setProjectId] = useState<string | null>(null);
   const [isPolling, setIsPolling] = useState(false);
   const [pollCount, setPollCount] = useState(0);

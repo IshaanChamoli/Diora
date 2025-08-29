@@ -1,6 +1,17 @@
 import { supabase } from './supabase';
 import { analyzeTranscript } from './openai';
 
+interface ExpertResult {
+  profile: {
+    name?: string;
+    linkedin_profile_url?: string;
+    linkedin_url?: string;
+    headline?: string;
+    summary?: string;
+    criteria?: { [key: string]: { reasoning?: string } };
+  };
+}
+
 export interface CreateProjectParams {
   name: string;
   description: string;
@@ -135,7 +146,7 @@ function startBackgroundPolling(searchId: string, apiKey: string, callId: string
 }
 
 // Save experts to database (same as clado-search route)
-async function saveExpertsToDatabase(results: any, projectId: string, query: string) {
+async function saveExpertsToDatabase(results: { results?: ExpertResult[] }, projectId: string, query: string) {
   if (!results.results || !Array.isArray(results.results)) {
     console.log('No experts found in results to save');
     return;
@@ -144,7 +155,7 @@ async function saveExpertsToDatabase(results: any, projectId: string, query: str
   console.log(`💾 Saving ${results.results.length} experts to database for project ${projectId}`);
   console.log(`📊 Experts will be ranked 1-${results.results.length} based on Clado's result order`);
 
-  const expertsToInsert = results.results.map((result: any, index: number) => {
+  const expertsToInsert = results.results.map((result: ExpertResult, index: number) => {
     const profile = result.profile;
     
     // Extract reasoning from all criteria

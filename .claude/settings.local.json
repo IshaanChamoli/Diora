@@ -3,7 +3,8 @@
     "allow": [
       "Bash(npm run dev:*)",
       "WebSearch",
-      "WebFetch(domain:openrouter.ai)"
+      "WebFetch(domain:openrouter.ai)",
+      "Bash(npm run build:*)"
     ],
     "deny": [],
     "ask": []

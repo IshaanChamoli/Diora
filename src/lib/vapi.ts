@@ -87,7 +87,7 @@ class VapiService {
               await this.handleAddDescriptionToolCall(toolCall);
             } else if (toolCall.function?.name === 'activate_continue_button') {
               console.log('Activate continue button tool call found:', toolCall); // Debug log
-              await this.handleActivateContinueButtonToolCall(toolCall);
+              await this.handleActivateContinueButtonToolCall();
             }
             // else if (toolCall.function?.name === 'delete_question') {
             //   console.log('Delete question tool call found:', toolCall); // Debug log
@@ -160,7 +160,7 @@ class VapiService {
     }
   }
 
-  private async handleActivateContinueButtonToolCall(toolCall: ToolCall) {
+  private async handleActivateContinueButtonToolCall() {
     try {
       // Get the authenticated user's ID (for consistency with other handlers)
       const { data: { user }, error: authError } = await supabase.auth.getUser();
